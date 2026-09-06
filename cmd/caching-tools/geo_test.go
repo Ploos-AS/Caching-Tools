@@ -56,6 +56,27 @@ func TestDistanceAndBearing(t *testing.T) {
 	}
 }
 
+func TestDestinationPointRoundTrip(t *testing.T) {
+	const lat1, lon1 = 59.9139, 10.7522
+	const distanceM = 12345.0
+	const bearing = 42.0
+	lat2, lon2 := destinationPoint(lat1, lon1, bearing, distanceM)
+	gotDistance, gotBearing := distanceAndBearing(lat1, lon1, lat2, lon2)
+	if math.Abs(gotDistance-distanceM) > 0.01 {
+		t.Fatalf("distance %.4f want %.4f", gotDistance, distanceM)
+	}
+	if math.Abs(gotBearing-bearing) > 0.0001 {
+		t.Fatalf("bearing %.6f want %.6f", gotBearing, bearing)
+	}
+}
+
+func TestDestinationPointNormalizesLongitude(t *testing.T) {
+	_, lon := destinationPoint(0, 179.9, 90, 30000)
+	if lon < -180 || lon > 180 {
+		t.Fatalf("longitude not normalized: %f", lon)
+	}
+}
+
 func TestFormatCoordinate(t *testing.T) {
 	f := formatCoordinate(58.1234, true)
 	if f.DMM != "N 58° 7.404'" {
