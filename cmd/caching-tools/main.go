@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"io/fs"
 	"log"
 	"net/http"
@@ -18,28 +19,115 @@ type healthResponse struct {
 	Time   string `json:"time"`
 }
 
+type coordinateRequest struct {
+	Latitude  string `json:"latitude"`
+	Longitude string `json:"longitude"`
+}
+
+type navigationRequest struct {
+	From coordinateRequest `json:"from"`
+	To   coordinateRequest `json:"to"`
+}
+
+type errorResponse struct {
+	Error string `json:"error"`
+}
+
 func main() {
 	addr := getenv("CACHING_TOOLS_ADDR", ":8080")
-
-	staticFS, err := fs.Sub(webFS, "web")
+	handler, err := newHandler()
 	if err != nil {
 		log.Fatal(err)
+	}
+	log.Printf("Caching Tools listening on %s", addr)
+	if err := http.ListenAndServe(addr, handler); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func newHandler() (http.Handler, error) {
+	staticFS, err := fs.Sub(webFS, "web")
+	if err != nil {
+		return nil, err
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(healthResponse{
-			Status: "ok",
-			Time:   time.Now().UTC().Format(time.RFC3339),
-		})
+		writeJSON(w, http.StatusOK, healthResponse{Status: "ok", Time: time.Now().UTC().Format(time.RFC3339)})
 	})
+	mux.HandleFunc("POST /api/coordinates/convert", handleConvert)
+	mux.HandleFunc("POST /api/coordinates/navigation", handleNavigation)
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
+	return mux, nil
+}
 
-	log.Printf("Caching Tools listening on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal(err)
+func handleConvert(w http.ResponseWriter, r *http.Request) {
+	var req coordinateRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
 	}
+	lat, lon, err := parsePoint(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, point(lat, lon))
+}
+
+func handleNavigation(w http.ResponseWriter, r *http.Request) {
+	var req navigationRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	lat1, lon1, err := parsePoint(req.From)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("from: "+err.Error()))
+		return
+	}
+	lat2, lon2, err := parsePoint(req.To)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("to: "+err.Error()))
+		return
+	}
+	distance, bearing := distanceAndBearing(lat1, lon1, lat2, lon2)
+	writeJSON(w, http.StatusOK, navigationResponse{
+		From: point(lat1, lon1), To: point(lat2, lon2),
+		DistanceM: distance, DistanceKM: distance / 1000, InitialBearing: bearing,
+	})
+}
+
+func parsePoint(req coordinateRequest) (float64, float64, error) {
+	lat, err := parseCoordinate(req.Latitude, true)
+	if err != nil {
+		return 0, 0, errors.New("latitude: "+err.Error())
+	}
+	lon, err := parseCoordinate(req.Longitude, false)
+	if err != nil {
+		return 0, 0, errors.New("longitude: "+err.Error())
+	}
+	return lat, lon, nil
+}
+
+func decodeJSON(r *http.Request, dst any) error {
+	defer r.Body.Close()
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		return errors.New("invalid JSON: "+err.Error())
+	}
+	return nil
+}
+
+func writeJSON(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
+}
+
+func writeError(w http.ResponseWriter, status int, err error) {
+	writeJSON(w, status, errorResponse{Error: err.Error()})
 }
 
 func getenv(key, fallback string) string {
