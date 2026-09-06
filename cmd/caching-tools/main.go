@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -65,6 +66,8 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/coordinates/convert", handleConvert)
 	mux.HandleFunc("POST /api/coordinates/navigation", handleNavigation)
 	mux.HandleFunc("POST /api/coordinates/project", handleProjection)
+	mux.HandleFunc("POST /api/coordinates/grid", handleGrid)
+	mux.HandleFunc("POST /api/coordinates/from-utm", handleFromUTM)
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	return mux, nil
 }
@@ -130,6 +133,45 @@ func handleProjection(w http.ResponseWriter, r *http.Request) {
 		From: point(lat, lon), To: point(toLat, toLon), DistanceM: req.DistanceM,
 		BearingDeg: math.Mod(req.BearingDeg+360, 360),
 	})
+}
+
+func handleGrid(w http.ResponseWriter, r *http.Request) {
+	var req coordinateRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	lat, lon, err := parsePoint(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	utm, err := latLonToUTM(lat, lon)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gridResponse{WGS84: point(lat, lon), UTM: utm})
+}
+
+func handleFromUTM(w http.ResponseWriter, r *http.Request) {
+	var req utmRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	hemisphere := strings.ToUpper(strings.TrimSpace(req.Hemisphere))
+	lat, lon, err := utmToLatLon(req.Zone, hemisphere, req.Easting, req.Northing)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	utm, err := latLonToUTM(lat, lon)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, gridResponse{WGS84: point(lat, lon), UTM: utm})
 }
 
 func parsePoint(req coordinateRequest) (float64, float64, error) {
