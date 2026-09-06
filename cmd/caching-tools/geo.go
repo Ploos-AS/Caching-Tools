@@ -34,6 +34,13 @@ type navigationResponse struct {
 	InitialBearing float64       `json:"initial_bearing_deg"`
 }
 
+type projectionResponse struct {
+	From       pointResponse `json:"from"`
+	To         pointResponse `json:"to"`
+	DistanceM  float64       `json:"distance_m"`
+	BearingDeg float64       `json:"bearing_deg"`
+}
+
 func parseCoordinate(input string, latitude bool) (float64, error) {
 	s := strings.TrimSpace(strings.ToUpper(input))
 	if s == "" {
@@ -159,6 +166,21 @@ func distanceAndBearing(lat1, lon1, lat2, lon2 float64) (float64, float64) {
 	x := math.Cos(phi1)*math.Sin(phi2) - math.Sin(phi1)*math.Cos(phi2)*math.Cos(dLambda)
 	bearing := math.Mod(degrees(math.Atan2(y, x))+360, 360)
 	return distance, bearing
+}
+
+func destinationPoint(lat, lon, bearingDeg, distanceM float64) (float64, float64) {
+	phi1 := radians(lat)
+	lambda1 := radians(lon)
+	theta := radians(math.Mod(bearingDeg+360, 360))
+	delta := distanceM / earthRadiusMeters
+
+	phi2 := math.Asin(math.Sin(phi1)*math.Cos(delta) + math.Cos(phi1)*math.Sin(delta)*math.Cos(theta))
+	lambda2 := lambda1 + math.Atan2(
+		math.Sin(theta)*math.Sin(delta)*math.Cos(phi1),
+		math.Cos(delta)-math.Sin(phi1)*math.Sin(phi2),
+	)
+	lambda2 = math.Mod(lambda2+3*math.Pi, 2*math.Pi) - math.Pi
+	return degrees(phi2), degrees(lambda2)
 }
 
 func radians(v float64) float64 { return v * math.Pi / 180 }
