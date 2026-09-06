@@ -94,7 +94,7 @@ func TestFromUTMAPI(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 	body := rec.Body.String()
-	if !strings.Contains(body, `"latitude":59.9139`) || !strings.Contains(body, `"longitude":10.7522`) {
+	if !strings.Contains(body, `"dd":"N 59.913900"`) || !strings.Contains(body, `"dd":"E 10.752200"`) {
 		t.Fatalf("unexpected body: %s", body)
 	}
 }
