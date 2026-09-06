@@ -6,17 +6,20 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1 provides the first usable coordinate toolbox:
+M1.2 provides a useful coordinate and grid toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - latitude/longitude and hemisphere validation
-- great-circle distance calculation
-- initial bearing calculation
-- JSON endpoints for conversion and navigation
-- interactive web UI
+- great-circle distance and initial bearing
+- waypoint projection from bearing and distance
+- WGS84 → UTM conversion
+- UTM → WGS84 conversion
+- 1 m precision MGRS generation
+- Norway and Svalbard UTM zone exceptions
+- interactive web UI and JSON APIs
 - Go unit and HTTP tests
 
-Core tools work locally without a Geocaching.com account, API key or network provider.
+Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_2.md](docs/M1_2.md).
 
 ## Run with Go
 
@@ -44,9 +47,8 @@ curl http://localhost:8080/healthz
 
 Caching Tools is intended to grow into a broad GPS and geocaching toolbox with:
 
-- DD / DMM / DMS coordinate conversion
+- coordinate conversion across common GPS/map formats
 - distance, bearing, projection and intersection tools
-- UTM/MGRS and other useful coordinate formats
 - waypoint creation and management
 - GPX import, inspection, editing and export
 - track and route analysis
@@ -63,9 +65,10 @@ Core functionality should remain useful offline and without API keys. Private ca
 ## Milestones
 
 - M0: runnable Go/OCI foundation
-- M1: coordinate conversion, distance and bearing
-- M1.1: coordinate projection / destination point
-- Next: UTM/MGRS, waypoint and GPX fundamentals
+- M1: DD/DMM/DMS conversion, distance and bearing
+- M1.1: waypoint projection / destination point
+- M1.2: WGS84/UTM conversion and MGRS output
+- Next: local waypoint fundamentals and GPX
 
 ## License
 
