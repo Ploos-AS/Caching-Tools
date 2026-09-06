@@ -64,3 +64,37 @@ func TestProjectionAPIRejectsNegativeDistance(t *testing.T) {
 		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestGridAPI(t *testing.T) {
+	h, err := newHandler()
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/coordinates/grid", strings.NewReader(`{"latitude":"59.9139","longitude":"10.7522"}`))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"zone":32`) || !strings.Contains(body, `"mgrs":"32V NM 97979 43118"`) {
+		t.Fatalf("unexpected body: %s", body)
+	}
+}
+
+func TestFromUTMAPI(t *testing.T) {
+	h, err := newHandler()
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/coordinates/from-utm", strings.NewReader(`{"zone":32,"hemisphere":"n","easting":597979.903,"northing":6643118.991}`))
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"latitude":59.9139`) || !strings.Contains(body, `"longitude":10.7522`) {
+		t.Fatalf("unexpected body: %s", body)
+	}
+}
