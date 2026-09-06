@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"time"
@@ -27,6 +28,12 @@ type coordinateRequest struct {
 type navigationRequest struct {
 	From coordinateRequest `json:"from"`
 	To   coordinateRequest `json:"to"`
+}
+
+type projectionRequest struct {
+	From       coordinateRequest `json:"from"`
+	BearingDeg float64           `json:"bearing_deg"`
+	DistanceM  float64           `json:"distance_m"`
 }
 
 type errorResponse struct {
@@ -57,6 +64,7 @@ func newHandler() (http.Handler, error) {
 	})
 	mux.HandleFunc("POST /api/coordinates/convert", handleConvert)
 	mux.HandleFunc("POST /api/coordinates/navigation", handleNavigation)
+	mux.HandleFunc("POST /api/coordinates/project", handleProjection)
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	return mux, nil
 }
@@ -95,6 +103,32 @@ func handleNavigation(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, navigationResponse{
 		From: point(lat1, lon1), To: point(lat2, lon2),
 		DistanceM: distance, DistanceKM: distance / 1000, InitialBearing: bearing,
+	})
+}
+
+func handleProjection(w http.ResponseWriter, r *http.Request) {
+	var req projectionRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	lat, lon, err := parsePoint(req.From)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, errors.New("from: "+err.Error()))
+		return
+	}
+	if math.IsNaN(req.BearingDeg) || math.IsInf(req.BearingDeg, 0) {
+		writeError(w, http.StatusBadRequest, errors.New("bearing must be finite"))
+		return
+	}
+	if req.DistanceM < 0 || math.IsNaN(req.DistanceM) || math.IsInf(req.DistanceM, 0) {
+		writeError(w, http.StatusBadRequest, errors.New("distance must be a finite non-negative number"))
+		return
+	}
+	toLat, toLon := destinationPoint(lat, lon, req.BearingDeg, req.DistanceM)
+	writeJSON(w, http.StatusOK, projectionResponse{
+		From: point(lat, lon), To: point(toLat, toLon), DistanceM: req.DistanceM,
+		BearingDeg: math.Mod(req.BearingDeg+360, 360),
 	})
 }
 
