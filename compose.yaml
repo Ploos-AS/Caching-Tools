@@ -1,0 +1,17 @@
+services:
+  caching-tools:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: ghcr.io/ploos-as/caching-tools:latest
+    container_name: caching-tools
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - caching-tools-data:/data
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  caching-tools-data:
