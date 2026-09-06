@@ -45,3 +45,19 @@ document.querySelector('#nav-form').addEventListener('submit', async (event) => 
     output.textContent = `Error: ${error.message}`;
   }
 });
+
+document.querySelector('#project-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const output = document.querySelector('#project-result');
+  try {
+    const data = await postJSON('/api/coordinates/project', {
+      from: {latitude: form.get('project-lat'), longitude: form.get('project-lon')},
+      bearing_deg: Number(form.get('bearing')),
+      distance_m: Number(form.get('distance'))
+    });
+    output.textContent = `Projected waypoint\n${formatPoint(data.to)}\n\nBearing: ${data.bearing_deg.toFixed(2)}°\nDistance: ${data.distance_m.toFixed(1)} m`;
+  } catch (error) {
+    output.textContent = `Error: ${error.message}`;
+  }
+});
