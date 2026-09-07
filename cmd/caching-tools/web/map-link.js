@@ -13,3 +13,11 @@ document.addEventListener('caching-tools:map-select', (event) => {
   selected.classList.add('list-selected');
   selected.scrollIntoView({behavior: 'smooth', block: 'center'});
 });
+
+window.addEventListener('load', () => {
+  if (document.querySelector('script[data-map-editor]')) return;
+  const script = document.createElement('script');
+  script.src = '/map-editor.js';
+  script.dataset.mapEditor = 'true';
+  document.body.append(script);
+});
