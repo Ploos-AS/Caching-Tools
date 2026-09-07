@@ -126,10 +126,10 @@ func nearestPointOnSegmentLocal(lat, lon float64, a, b gpxPoint) (float64, float
 	if math.Abs(cosLat) < 1e-12 {
 		cosLat = 1e-12
 	}
-	ax := radians(a.Longitude-lon) * cosLat * earthRadiusM
-	ay := radians(a.Latitude-lat) * earthRadiusM
-	bx := radians(b.Longitude-lon) * cosLat * earthRadiusM
-	by := radians(b.Latitude-lat) * earthRadiusM
+	ax := radians(a.Longitude-lon) * cosLat * earthRadiusMeters
+	ay := radians(a.Latitude-lat) * earthRadiusMeters
+	bx := radians(b.Longitude-lon) * cosLat * earthRadiusMeters
+	by := radians(b.Latitude-lat) * earthRadiusMeters
 	dx, dy := bx-ax, by-ay
 	denom := dx*dx + dy*dy
 	t := 0.0
@@ -140,5 +140,5 @@ func nearestPointOnSegmentLocal(lat, lon float64, a, b gpxPoint) (float64, float
 	if t > 1 { t = 1 }
 	x := ax + t*dx
 	y := ay + t*dy
-	return lat + degrees(y/earthRadiusM), lon + degrees(x/(earthRadiusM*cosLat))
+	return lat + degrees(y/earthRadiusMeters), lon + degrees(x/(earthRadiusMeters*cosLat))
 }
