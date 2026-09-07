@@ -30,12 +30,14 @@
       <p id="waypoint-status" aria-live="polite"></p>
       <div id="waypoint-list" class="result">Loading waypoints...</div>
 
-      <h3>GPX 1.1 exchange</h3>
-      <p>Import GPX waypoints into the local list, or export all saved waypoints as a standard <code>.gpx</code> file.</p>
+      <h3>GPX 1.1 exchange and inspection</h3>
+      <p>Select a GPX file to inspect waypoints, routes and tracks. Waypoints can then be imported into the local list; tracks and routes are inspected without being persisted.</p>
       <form id="gpx-import-form" class="form-grid">
         <label>GPX file<input id="gpx-file" name="gpx-file" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" required></label>
+        <button type="button" id="gpx-inspect">Inspect GPX</button>
         <button type="submit">Import GPX waypoints</button>
       </form>
+      <pre id="gpx-inspection" class="result" aria-live="polite">Select a GPX file to inspect tracks and routes.</pre>
       <p><a id="gpx-export" href="/api/gpx/waypoints/export" download="caching-tools-waypoints.gpx">Export all waypoints as GPX</a></p>
       <p id="gpx-status" aria-live="polite"></p>
     </section>
@@ -105,9 +107,9 @@
       <article><h2>Coordinates</h2><p>DD, DMM, DMS, UTM and MGRS coordinate tools.</p><span>Available</span></article>
       <article><h2>Projection</h2><p>Project waypoints from bearing and distance.</p><span>Available</span></article>
       <article><h2>Waypoints</h2><p>Create, edit and keep local GPS waypoints.</p><span>Available</span></article>
-      <article><h2>GPX</h2><p>Import and export GPX 1.1 waypoints.</p><span>Available</span></article>
+      <article><h2>GPX</h2><p>Waypoint exchange plus track and route inspection.</p><span>Available</span></article>
     </section>
-    <footer>Caching Tools M1.4</footer>
+    <footer>Caching Tools M1.5</footer>
   </main>
   <script src="/app.js"></script>
 </body>
