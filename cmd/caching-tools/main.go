@@ -32,7 +32,7 @@ func main() {
 func newHandler() (http.Handler, error) {
 	staticFS, err := fs.Sub(webFS, "web"); if err != nil { return nil, err }
 	dataDir := getenv("CACHING_TOOLS_DATA_DIR", "/data")
-	waypoints := newWaypointStore(dataDir); paths := newPathStore(dataDir)
+	waypoints := newWaypointStore(dataDir); paths := newPathStore(dataDir); workspaces := newMysteryWorkspaceStore(dataDir)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, http.StatusOK, healthResponse{Status:"ok", Time:time.Now().UTC().Format(time.RFC3339)}) })
 	mux.HandleFunc("POST /api/coordinates/convert", handleConvert)
@@ -45,6 +45,11 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/coordinates/intersection/circle-circle", handleCircleIntersection)
 	mux.HandleFunc("POST /api/coordinates/final", handleFinalCoordinate)
 	mux.HandleFunc("POST /api/puzzle", handlePuzzle)
+	mux.HandleFunc("GET /api/mystery-workspaces", func(w http.ResponseWriter,_ *http.Request){ items,err:=workspaces.list(); if err!=nil{writeError(w,500,err);return}; writeJSON(w,200,items) })
+	mux.HandleFunc("POST /api/mystery-workspaces", func(w http.ResponseWriter,r *http.Request){ var req mysteryWorkspaceRequest; if err:=decodeJSON(r,&req);err!=nil{writeError(w,400,err);return}; item,err:=workspaces.create(req); if err!=nil{writeError(w,400,err);return}; writeJSON(w,201,item) })
+	mux.HandleFunc("GET /api/mystery-workspaces/{id}", func(w http.ResponseWriter,r *http.Request){ item,err:=workspaces.get(r.PathValue("id")); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("workspace not found"));return}; if err!=nil{writeError(w,500,err);return}; writeJSON(w,200,item) })
+	mux.HandleFunc("PUT /api/mystery-workspaces/{id}", func(w http.ResponseWriter,r *http.Request){ var req mysteryWorkspaceRequest; if err:=decodeJSON(r,&req);err!=nil{writeError(w,400,err);return}; item,err:=workspaces.update(r.PathValue("id"),req); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("workspace not found"));return}; if err!=nil{writeError(w,400,err);return}; writeJSON(w,200,item) })
+	mux.HandleFunc("DELETE /api/mystery-workspaces/{id}", func(w http.ResponseWriter,r *http.Request){ err:=workspaces.delete(r.PathValue("id")); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("workspace not found"));return}; if err!=nil{writeError(w,500,err);return}; w.WriteHeader(204) })
 	mux.HandleFunc("GET /api/waypoints", func(w http.ResponseWriter, _ *http.Request) { handleWaypointList(w, waypoints) })
 	mux.HandleFunc("POST /api/waypoints", func(w http.ResponseWriter, r *http.Request) { handleWaypointCreate(w, r, waypoints) })
 	mux.HandleFunc("PUT /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointUpdate(w, r, waypoints) })
