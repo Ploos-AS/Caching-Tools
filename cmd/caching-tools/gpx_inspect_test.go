@@ -37,10 +37,85 @@ func TestInspectGPXTracksAndRoutes(t *testing.T) {
 	}
 }
 
+func TestInspectGPXTrackElevationAndTimeStatistics(t *testing.T) {
+	input := `<gpx version="1.1"><trk><name>Timed climb</name><trkseg>
+<trkpt lat="59.0000" lon="10.0000"><ele>100</ele><time>2026-09-07T08:00:00Z</time></trkpt>
+<trkpt lat="59.0010" lon="10.0000"><ele>130</ele><time>2026-09-07T08:01:00Z</time></trkpt>
+<trkpt lat="59.0020" lon="10.0000"><ele>120</ele><time>2026-09-07T08:03:00Z</time></trkpt>
+</trkseg></trk></gpx>`
+	result, err := inspectGPX(strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	track := result.Tracks[0]
+	if track.ElevationPoints != 3 || track.MinElevationM == nil || track.MaxElevationM == nil {
+		t.Fatalf("missing elevation stats: %+v", track)
+	}
+	if *track.MinElevationM != 100 || *track.MaxElevationM != 130 || track.ElevationGainM != 30 || track.ElevationLossM != 10 {
+		t.Fatalf("unexpected elevation stats: %+v", track)
+	}
+	if track.TimedPoints != 3 || track.DurationS != 180 {
+		t.Fatalf("unexpected time stats: %+v", track)
+	}
+	if track.AverageSpeedKmh == nil || track.MaxSpeedKmh == nil || *track.AverageSpeedKmh <= 0 || *track.MaxSpeedKmh <= *track.AverageSpeedKmh {
+		t.Fatalf("unexpected speed stats: %+v", track)
+	}
+}
+
+func TestInspectGPXTrackStatsDoNotCrossSegmentBoundaries(t *testing.T) {
+	input := `<gpx version="1.1"><trk><trkseg>
+<trkpt lat="59" lon="10"><ele>100</ele><time>2026-09-07T08:00:00Z</time></trkpt>
+<trkpt lat="59.001" lon="10"><ele>110</ele><time>2026-09-07T08:01:00Z</time></trkpt>
+</trkseg><trkseg>
+<trkpt lat="60" lon="11"><ele>500</ele><time>2026-09-07T09:00:00Z</time></trkpt>
+<trkpt lat="60.001" lon="11"><ele>490</ele><time>2026-09-07T09:02:00Z</time></trkpt>
+</trkseg></trk></gpx>`
+	result, err := inspectGPX(strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	track := result.Tracks[0]
+	if track.DurationS != 180 {
+		t.Fatalf("segment gap incorrectly included in duration: %f", track.DurationS)
+	}
+	if track.ElevationGainM != 10 || track.ElevationLossM != 10 {
+		t.Fatalf("segment boundary incorrectly affected elevation: %+v", track)
+	}
+}
+
+func TestInspectGPXAllowsPartialTrackMetadata(t *testing.T) {
+	input := `<gpx version="1.1"><trk><trkseg>
+<trkpt lat="59" lon="10"><ele>0</ele><time>2026-09-07T08:00:00Z</time></trkpt>
+<trkpt lat="59.001" lon="10"/>
+<trkpt lat="59.002" lon="10"><ele>20</ele><time>2026-09-07T08:02:00Z</time></trkpt>
+</trkseg></trk></gpx>`
+	result, err := inspectGPX(strings.NewReader(input))
+	if err != nil {
+		t.Fatal(err)
+	}
+	track := result.Tracks[0]
+	if track.ElevationPoints != 2 || track.TimedPoints != 2 {
+		t.Fatalf("partial metadata counts wrong: %+v", track)
+	}
+	if track.DurationS != 0 || track.AverageSpeedKmh != nil || track.MaxSpeedKmh != nil {
+		t.Fatalf("speed should require adjacent timed points: %+v", track)
+	}
+	if track.MinElevationM == nil || *track.MinElevationM != 0 {
+		t.Fatalf("zero elevation must be preserved: %+v", track)
+	}
+}
+
 func TestInspectGPXRejectsInvalidPathCoordinate(t *testing.T) {
 	input := `<gpx version="1.1"><trk><trkseg><trkpt lat="95" lon="10"/></trkseg></trk></gpx>`
 	if _, err := inspectGPX(strings.NewReader(input)); err == nil {
 		t.Fatal("expected invalid track coordinate error")
+	}
+}
+
+func TestInspectGPXRejectsInvalidTrackTime(t *testing.T) {
+	input := `<gpx version="1.1"><trk><trkseg><trkpt lat="59" lon="10"><time>not-a-time</time></trkpt></trkseg></trk></gpx>`
+	if _, err := inspectGPX(strings.NewReader(input)); err == nil {
+		t.Fatal("expected invalid track time error")
 	}
 }
 
