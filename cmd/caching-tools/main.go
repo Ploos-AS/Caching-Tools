@@ -41,6 +41,7 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/coordinates/grid", handleGrid)
 	mux.HandleFunc("POST /api/coordinates/from-utm", handleFromUTM)
 	mux.HandleFunc("POST /api/coordinates/crs", handleCRS)
+	mux.HandleFunc("POST /api/navigation/field", func(w http.ResponseWriter, r *http.Request) { handleFieldNavigation(w, r, waypoints, paths) })
 	mux.HandleFunc("POST /api/coordinates/intersection/bearing-bearing", handleBearingIntersection)
 	mux.HandleFunc("POST /api/coordinates/intersection/bearing-distance", handleBearingDistanceIntersection)
 	mux.HandleFunc("POST /api/coordinates/intersection/circle-circle", handleCircleIntersection)
@@ -76,6 +77,7 @@ func handleProjection(w http.ResponseWriter, r *http.Request) { var req projecti
 func handleGrid(w http.ResponseWriter, r *http.Request) { var req coordinateRequest; if err:=decodeJSON(r,&req); err!=nil { writeError(w,400,err); return }; lat,lon,err:=parsePoint(req); if err!=nil { writeError(w,400,err); return }; u,err:=latLonToUTM(lat,lon); if err!=nil { writeError(w,400,err); return }; writeJSON(w,200,gridResponse{WGS84:point(lat,lon),UTM:u}) }
 func handleFromUTM(w http.ResponseWriter, r *http.Request) { var req utmRequest; if err:=decodeJSON(r,&req); err!=nil { writeError(w,400,err); return }; h:=strings.ToUpper(strings.TrimSpace(req.Hemisphere)); lat,lon,err:=utmToLatLon(req.Zone,h,req.Easting,req.Northing); if err!=nil { writeError(w,400,err); return }; u,err:=latLonToUTM(lat,lon); if err!=nil { writeError(w,400,err); return }; writeJSON(w,200,gridResponse{WGS84:point(lat,lon),UTM:u}) }
 func handleCRS(w http.ResponseWriter, r *http.Request) { var req crsRequest; if err:=decodeJSON(r,&req); err!=nil { writeError(w,400,err); return }; result,err:=convertCRS(req); if err!=nil { writeError(w,400,err); return }; writeJSON(w,200,result) }
+func handleFieldNavigation(w http.ResponseWriter, r *http.Request, waypoints *waypointStore, paths *pathStore) { var req fieldNavigationRequest; if err:=decodeJSON(r,&req); err!=nil { writeError(w,400,err); return }; result,err:=fieldNavigate(req,waypoints,paths); if errors.Is(err,os.ErrNotExist) { writeError(w,404,errors.New("navigation target not found")); return }; if err!=nil { writeError(w,400,err); return }; writeJSON(w,200,result) }
 func handleFinalCoordinate(w http.ResponseWriter, r *http.Request) { var req finalCoordinateRequest; if err:=decodeJSON(r,&req); err!=nil { writeError(w,400,err); return }; result,err:=solveFinalCoordinate(req); if err!=nil { writeError(w,400,err); return }; writeJSON(w,200,result) }
 func handleWaypointList(w http.ResponseWriter, store *waypointStore) { items,err:=store.list(); if err!=nil { writeError(w,500,err); return }; views:=make([]waypointResponse,0,len(items)); for _,item:=range items { views=append(views,waypointView(item)) }; writeJSON(w,200,views) }
 func handleWaypointCreate(w http.ResponseWriter, r *http.Request, store *waypointStore) { var req waypointRequest; if err:=decodeJSON(r,&req); err!=nil { writeError(w,400,err); return }; item,err:=store.create(req); if err!=nil { writeError(w,400,err); return }; writeJSON(w,201,waypointView(item)) }
