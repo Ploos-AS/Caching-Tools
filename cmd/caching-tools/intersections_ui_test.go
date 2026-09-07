@@ -20,7 +20,7 @@ func TestIntersectionWaypointSaveUIAssets(t *testing.T) {
 	}
 	for _, want := range []string{
 		`id="intersection-bearing-result"`, `id="intersection-distance-result"`,
-		`id="intersection-circle-result"`, `Caching Tools M1.12`,
+		`id="intersection-circle-result"`, `Caching Tools M1.13`,
 		"saved directly as a local waypoint",
 	} {
 		if !strings.Contains(page.Body.String(), want) {
