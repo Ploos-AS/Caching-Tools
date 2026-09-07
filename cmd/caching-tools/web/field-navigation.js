@@ -13,8 +13,15 @@ fieldSection.innerHTML = `
     <label>Arrival radius (m)<input name="arrival-radius" type="number" min="1" step="1" value="20" required></label>
     <button type="button" id="field-use-location">Use browser location</button>
     <button type="submit">Go to / route guidance</button>
+    <button type="button" id="field-live-start">Start live navigation</button>
+    <button type="button" id="field-live-stop" disabled>Stop live navigation</button>
   </form>
-  <pre id="field-navigation-result" class="result">Choose a saved target.</pre>`;
+  <p id="field-live-status" aria-live="polite">Live navigation stopped.</p>
+  <pre id="field-navigation-result" class="result">Choose a saved target.</pre>
+  <h3>Session breadcrumbs</h3>
+  <p>Breadcrumbs exist only in browser memory for the current live session and are never written to <code>/data</code>.</p>
+  <button type="button" id="field-breadcrumb-clear">Clear breadcrumbs</button>
+  <pre id="field-breadcrumbs" class="result">No breadcrumb points.</pre>`;
 
 const navSection = document.querySelector('#nav-form')?.closest('.tool');
 if (navSection) navSection.insertAdjacentElement('beforebegin', fieldSection);
@@ -22,8 +29,17 @@ else document.querySelector('main')?.append(fieldSection);
 
 const fieldForm = fieldSection.querySelector('#field-navigation-form');
 const fieldResult = fieldSection.querySelector('#field-navigation-result');
+const fieldLiveStatus = fieldSection.querySelector('#field-live-status');
+const fieldBreadcrumbs = fieldSection.querySelector('#field-breadcrumbs');
+const fieldLiveStart = fieldSection.querySelector('#field-live-start');
+const fieldLiveStop = fieldSection.querySelector('#field-live-stop');
 let fieldWaypoints = [];
 let fieldPaths = [];
+let liveWatchID = null;
+let liveRequestInFlight = false;
+let livePendingPosition = null;
+let liveGeneration = 0;
+let liveBreadcrumbs = [];
 
 async function loadFieldTargets() {
   [fieldWaypoints, fieldPaths] = await Promise.all([requestJSON('/api/waypoints'), requestJSON('/api/paths')]);
@@ -70,20 +86,118 @@ function formatFieldNavigation(data) {
   return lines.join('\n');
 }
 
-fieldForm.elements['target-type'].addEventListener('change', renderFieldTargets);
-fieldForm.addEventListener('submit', async event => {
-  event.preventDefault();
+function fieldPayload(latitude, longitude) {
   const form = new FormData(fieldForm);
   const id = String(form.get('target-id') || '');
-  if (!id) { fieldResult.textContent = 'No saved target is available.'; return; }
+  if (!id) throw new Error('No saved target is available.');
   const payload = {
-    from:{latitude:String(form.get('latitude')), longitude:String(form.get('longitude'))},
+    from:{latitude:String(latitude), longitude:String(longitude)},
     off_route_threshold_m:Number(form.get('off-route-threshold')),
     arrival_radius_m:Number(form.get('arrival-radius'))
   };
   if (form.get('target-type') === 'waypoint') payload.waypoint_id = id; else payload.path_id = id;
+  return payload;
+}
+
+async function navigateField(latitude, longitude) {
+  return postJSON('/api/navigation/field', fieldPayload(latitude, longitude));
+}
+
+function renderBreadcrumbs() {
+  if (!liveBreadcrumbs.length) {
+    fieldBreadcrumbs.textContent = 'No breadcrumb points.';
+    return;
+  }
+  const recent = liveBreadcrumbs.slice(-12);
+  const lines = [`${liveBreadcrumbs.length} breadcrumb point${liveBreadcrumbs.length === 1 ? '' : 's'} in this in-memory session.`];
+  if (liveBreadcrumbs.length > recent.length) lines.push(`Showing the latest ${recent.length}:`);
+  for (const item of recent) {
+    lines.push(`${item.time}  ${item.latitude.toFixed(7)}, ${item.longitude.toFixed(7)}  ±${Math.round(item.accuracy)} m`);
+  }
+  fieldBreadcrumbs.textContent = lines.join('\n');
+}
+
+function addBreadcrumb(position) {
+  liveBreadcrumbs.push({
+    latitude: position.coords.latitude,
+    longitude: position.coords.longitude,
+    accuracy: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : 0,
+    time: new Date(position.timestamp || Date.now()).toISOString()
+  });
+  if (liveBreadcrumbs.length > 1000) liveBreadcrumbs.shift();
+  renderBreadcrumbs();
+}
+
+async function processLivePosition(position, generation) {
+  if (generation !== liveGeneration || liveWatchID === null) return;
+  livePendingPosition = position;
+  if (liveRequestInFlight) return;
+  liveRequestInFlight = true;
   try {
-    fieldResult.textContent = formatFieldNavigation(await postJSON('/api/navigation/field', payload));
+    while (livePendingPosition && generation === liveGeneration && liveWatchID !== null) {
+      const current = livePendingPosition;
+      livePendingPosition = null;
+      fieldForm.elements.latitude.value = current.coords.latitude.toFixed(7);
+      fieldForm.elements.longitude.value = current.coords.longitude.toFixed(7);
+      addBreadcrumb(current);
+      try {
+        const result = await navigateField(current.coords.latitude, current.coords.longitude);
+        if (generation === liveGeneration && liveWatchID !== null) {
+          fieldResult.textContent = formatFieldNavigation(result);
+          fieldLiveStatus.textContent = `Live navigation active · accuracy about ${Math.round(current.coords.accuracy)} m · ${result.guidance.status}`;
+        }
+      } catch (error) {
+        if (generation === liveGeneration && liveWatchID !== null) fieldLiveStatus.textContent = `Live navigation error: ${error.message}`;
+      }
+    }
+  } finally {
+    liveRequestInFlight = false;
+  }
+}
+
+function stopLiveNavigation(message = 'Live navigation stopped.') {
+  liveGeneration += 1;
+  livePendingPosition = null;
+  if (liveWatchID !== null && navigator.geolocation) navigator.geolocation.clearWatch(liveWatchID);
+  liveWatchID = null;
+  fieldLiveStart.disabled = false;
+  fieldLiveStop.disabled = true;
+  fieldLiveStatus.textContent = message;
+}
+
+function startLiveNavigation() {
+  if (!navigator.geolocation) { fieldLiveStatus.textContent = 'Browser geolocation is not available.'; return; }
+  try {
+    const form = new FormData(fieldForm);
+    fieldPayload(form.get('latitude'), form.get('longitude'));
+  } catch (error) {
+    fieldLiveStatus.textContent = error.message;
+    return;
+  }
+  if (liveWatchID !== null) stopLiveNavigation();
+  liveBreadcrumbs = [];
+  renderBreadcrumbs();
+  liveGeneration += 1;
+  const generation = liveGeneration;
+  fieldLiveStart.disabled = true;
+  fieldLiveStop.disabled = false;
+  fieldLiveStatus.textContent = 'Starting live navigation…';
+  liveWatchID = navigator.geolocation.watchPosition(
+    position => processLivePosition(position, generation),
+    error => {
+      if (generation !== liveGeneration) return;
+      stopLiveNavigation(`Live navigation location error: ${error.message}`);
+    },
+    {enableHighAccuracy:true, maximumAge:2000, timeout:15000}
+  );
+}
+
+fieldForm.elements['target-type'].addEventListener('change', renderFieldTargets);
+fieldForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  const form = new FormData(fieldForm);
+  try {
+    fieldResult.textContent = formatFieldNavigation(await navigateField(form.get('latitude'), form.get('longitude')));
   } catch (error) {
     fieldResult.textContent = `Error: ${error.message}`;
   }
@@ -98,6 +212,13 @@ fieldSection.querySelector('#field-use-location').addEventListener('click', () =
   }, error => { fieldResult.textContent = `Location error: ${error.message}`; }, {enableHighAccuracy:true, maximumAge:5000, timeout:10000});
 });
 
+fieldLiveStart.addEventListener('click', startLiveNavigation);
+fieldLiveStop.addEventListener('click', () => stopLiveNavigation());
+fieldSection.querySelector('#field-breadcrumb-clear').addEventListener('click', () => {
+  liveBreadcrumbs = [];
+  renderBreadcrumbs();
+});
+
 document.addEventListener('caching-tools:map-select', event => {
   const detail = event.detail || {};
   if (detail.kind === 'waypoint') fieldForm.elements['target-type'].value = 'waypoint';
@@ -107,5 +228,6 @@ document.addEventListener('caching-tools:map-select', event => {
   fieldForm.elements['target-id'].value = detail.id || '';
 });
 
+window.addEventListener('pagehide', () => { if (liveWatchID !== null) stopLiveNavigation(); });
 loadFieldTargets().catch(error => { fieldResult.textContent = `Error: ${error.message}`; });
-const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.24';
+const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.25';
