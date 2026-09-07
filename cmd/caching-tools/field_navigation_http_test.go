@@ -25,11 +25,12 @@ func TestFieldNavigationAPI(t *testing.T) {
 	rr := httptest.NewRecorder(); h.ServeHTTP(rr,httptest.NewRequest(http.MethodPost,"/api/navigation/field",strings.NewReader(body)))
 	if rr.Code != http.StatusOK { t.Fatalf("status=%d body=%s",rr.Code,rr.Body.String()) }
 	if !strings.Contains(rr.Body.String(),`"kind":"waypoint"`) || !strings.Contains(rr.Body.String(),wp.ID) { t.Fatalf("body=%s",rr.Body.String()) }
+	if strings.Contains(rr.Body.String(),`"progress"`) { t.Fatalf("waypoint response unexpectedly has progress: %s",rr.Body.String()) }
 
 	body = `{"from":{"latitude":"60.1","longitude":"10.5"},"path_id":"path-api"}`
 	rr = httptest.NewRecorder(); h.ServeHTTP(rr,httptest.NewRequest(http.MethodPost,"/api/navigation/field",strings.NewReader(body)))
 	if rr.Code != http.StatusOK { t.Fatalf("status=%d body=%s",rr.Code,rr.Body.String()) }
-	for _, want := range []string{`"kind":"route"`,`"cross_track_m"`,`"nearest_path"`} { if !strings.Contains(rr.Body.String(),want) { t.Fatalf("missing %s in %s",want,rr.Body.String()) } }
+	for _, want := range []string{`"kind":"route"`,`"cross_track_m"`,`"nearest_path"`,`"progress"`,`"along_m"`,`"remaining_m"`,`"progress_percent"`,`"next_point"`,`"forward_bearing_deg"`} { if !strings.Contains(rr.Body.String(),want) { t.Fatalf("missing %s in %s",want,rr.Body.String()) } }
 }
 
 func TestFieldNavigationAPIBadTarget(t *testing.T) {
