@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.22 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.23 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -17,6 +17,9 @@ M1.22 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - local datum/CRS converter UI and `POST /api/coordinates/crs`
 - field navigation to saved waypoints with distance and bearing
 - nearest-point and cross-track distance to saved routes/tracks
+- route/track along-distance, remaining distance and progress percentage
+- next path point, distance to next point and forward bearing guidance
+- track progress respects segment boundaries without bridging segment gaps
 - optional browser geolocation as local field-navigation input
 - map selection can become the field-navigation target
 - bearing/bearing, bearing/distance and circle/circle intersections
@@ -58,7 +61,7 @@ M1.22 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_22.md](docs/M1_22.md).
+See [docs/M1_23.md](docs/M1_23.md).
 
 ## Run with Go
 
@@ -112,7 +115,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.20: visual route/track editing directly on the local SVG map
 - M1.21: WGS84/ETRS89 datum handling and explicit ETRS89 / UTM CRS conversion
 - M1.22: local field navigation to waypoints and nearest/cross-track navigation for saved paths
-- Next: field bearing guidance / route-progress metrics or additional well-defined CRS families
+- M1.23: along-path progress, remaining distance, next-point distance and forward-bearing guidance
+- Next: route deviation alerts / arrival thresholds or additional well-defined CRS families
 
 ## License
 
