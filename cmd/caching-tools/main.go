@@ -75,6 +75,7 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("DELETE /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointDelete(w, r, waypoints) })
 	mux.HandleFunc("POST /api/gpx/waypoints/import", func(w http.ResponseWriter, r *http.Request) { handleGPXImport(w, r, waypoints) })
 	mux.HandleFunc("GET /api/gpx/waypoints/export", func(w http.ResponseWriter, _ *http.Request) { handleGPXExport(w, waypoints) })
+	mux.HandleFunc("POST /api/gpx/inspect", handleGPXInspect)
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	return mux, nil
 }
@@ -271,6 +272,16 @@ func handleGPXExport(w http.ResponseWriter, store *waypointStore) {
 	w.Header().Set("Content-Disposition", `attachment; filename="caching-tools-waypoints.gpx"`)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(data)
+}
+
+func handleGPXInspect(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	result, err := inspectGPX(r.Body)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func parsePoint(req coordinateRequest) (float64, float64, error) {
