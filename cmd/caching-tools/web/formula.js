@@ -15,6 +15,10 @@ function parseVariableAssignments(text) {
   return variables;
 }
 
+function variableAssignmentsText(variables = {}) {
+  return Object.keys(variables).sort().map(key => `${key}=${variables[key]}`).join(', ');
+}
+
 function renderFinalCoordinate(data) {
   return [
     `Expanded: ${data.latitude_expanded}, ${data.longitude_expanded}`,
@@ -36,6 +40,20 @@ async function solveFinalCoordinateFromForm() {
   finalResult.textContent = renderFinalCoordinate(data);
   finalSave.hidden = false;
   return data;
+}
+
+function loadFinalWorkspace(workspace) {
+  if (!workspace) return;
+  finalForm.querySelector('[name="variables"]').value = variableAssignmentsText(workspace.variables || {});
+  finalForm.querySelector('[name="latitude-formula"]').value = workspace.latitude_formula || '';
+  finalForm.querySelector('[name="longitude-formula"]').value = workspace.longitude_formula || '';
+  finalResult.textContent = `Loaded ${workspace.code ? workspace.code + ' — ' : ''}${workspace.title}.`;
+  solveFinalCoordinateFromForm().catch(error => {
+    finalCoordinate = null;
+    finalSave.hidden = true;
+    finalResult.textContent = `Loaded workspace, but formula is not yet solvable: ${error.message}`;
+  });
+  finalForm.scrollIntoView({behavior:'smooth', block:'start'});
 }
 
 finalForm.addEventListener('submit', async (event) => {
@@ -63,17 +81,22 @@ for (const input of finalForm.querySelectorAll('input, textarea')) {
 finalSave.addEventListener('click', async () => {
   if (!finalCoordinate) return;
   try {
-    await postJSON('/api/waypoints', {
-      name: 'Final coordinate',
+    const workspace = window.getActiveMysteryWorkspace ? window.getActiveMysteryWorkspace() : null;
+    const name = workspace ? `${workspace.code ? workspace.code + ' ' : ''}${workspace.title} final` : 'Final coordinate';
+    const saved = await postJSON('/api/waypoints', {
+      name,
       latitude: String(finalCoordinate.point.latitude),
       longitude: String(finalCoordinate.point.longitude),
       type: 'final',
-      comment: `Formula final: ${finalCoordinate.latitude_expanded}, ${finalCoordinate.longitude_expanded}`
+      comment: `${workspace ? `Mystery workspace ${workspace.id}. ` : ''}Formula final: ${finalCoordinate.latitude_expanded}, ${finalCoordinate.longitude_expanded}`
     });
-    finalResult.textContent = `${renderFinalCoordinate(finalCoordinate)}\n\nSaved as waypoint.`;
+    if (window.linkFinalWaypointToActiveWorkspace) await window.linkFinalWaypointToActiveWorkspace(saved.id);
+    finalResult.textContent = `${renderFinalCoordinate(finalCoordinate)}\n\nSaved as waypoint${workspace ? ' and linked to active workspace' : ''}.`;
     await loadWaypoints();
     if (window.refreshLocalMap) await window.refreshLocalMap();
   } catch (error) {
     finalResult.textContent = `${renderFinalCoordinate(finalCoordinate)}\n\nSave error: ${error.message}`;
   }
 });
+
+window.loadFinalWorkspace = loadFinalWorkspace;
