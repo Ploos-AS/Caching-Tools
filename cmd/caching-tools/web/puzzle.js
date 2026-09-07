@@ -9,6 +9,10 @@ async function puzzleCall(operation, extra = {}) {
   return data;
 }
 
+function emitPuzzleResult(operation, text) {
+  document.dispatchEvent(new CustomEvent('caching-tools:puzzle-result', {detail:{operation, text}}));
+}
+
 function bindPuzzleForm(id, operation, payload, render) {
   const form = document.querySelector(id);
   form.addEventListener('submit', async (event) => {
@@ -17,7 +21,9 @@ function bindPuzzleForm(id, operation, payload, render) {
     try {
       const op = typeof operation === 'function' ? operation(new FormData(form)) : operation;
       const data = await puzzleCall(op, payload(new FormData(form)));
-      out.textContent = render(data);
+      const text = render(data);
+      out.textContent = text;
+      emitPuzzleResult(op, text);
     } catch (error) {
       out.textContent = `Error: ${error.message}`;
     }
