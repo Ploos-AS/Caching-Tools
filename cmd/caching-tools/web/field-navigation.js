@@ -3,12 +3,14 @@ fieldSection.className = 'tool';
 fieldSection.id = 'field-navigation';
 fieldSection.innerHTML = `
   <h2>Field navigation</h2>
-  <p>Navigate from your current position to a saved waypoint or follow a saved route/track with nearest-path and progress guidance. All calculations stay local.</p>
+  <p>Navigate from your current position to a saved waypoint or follow a saved route/track with nearest-path, progress, deviation and arrival guidance. All calculations stay local.</p>
   <form id="field-navigation-form" class="form-grid nav-grid">
     <label>Current latitude<input name="latitude" value="59.9139" required></label>
     <label>Current longitude<input name="longitude" value="10.7522" required></label>
     <label>Target type<select name="target-type"><option value="waypoint">Waypoint</option><option value="path">Route / track</option></select></label>
     <label>Target<select name="target-id"></select></label>
+    <label>Off-route threshold (m)<input name="off-route-threshold" type="number" min="1" step="1" value="50" required></label>
+    <label>Arrival radius (m)<input name="arrival-radius" type="number" min="1" step="1" value="20" required></label>
     <button type="button" id="field-use-location">Use browser location</button>
     <button type="submit">Go to / route guidance</button>
   </form>
@@ -44,10 +46,14 @@ function renderFieldTargets() {
 function formatFieldNavigation(data) {
   const lines = [
     `${data.kind}: ${data.name}`,
+    `Status: ${data.guidance.status}`,
+    data.guidance.message,
     `Distance: ${data.distance_m.toFixed(1)} m (${data.distance_km.toFixed(3)} km)`,
     `Bearing: ${data.bearing_deg.toFixed(1)}°`,
-    `Target: ${data.target.lat.dmm}, ${data.target.lon.dmm}`
+    `Target: ${data.target.lat.dmm}, ${data.target.lon.dmm}`,
+    `Arrival radius: ${data.guidance.arrival_radius_m.toFixed(0)} m`
   ];
+  if (data.kind !== 'waypoint') lines.push(`Off-route threshold: ${data.guidance.off_route_threshold_m.toFixed(0)} m`);
   if (data.cross_track_m != null) lines.push(`Cross-track / nearest-path distance: ${data.cross_track_m.toFixed(1)} m`);
   if (data.nearest_path) lines.push(`Nearest path location: segment ${data.nearest_path.segment + 1}, edge ${data.nearest_path.edge + 1}`);
   if (data.progress) {
@@ -70,7 +76,11 @@ fieldForm.addEventListener('submit', async event => {
   const form = new FormData(fieldForm);
   const id = String(form.get('target-id') || '');
   if (!id) { fieldResult.textContent = 'No saved target is available.'; return; }
-  const payload = {from:{latitude:String(form.get('latitude')), longitude:String(form.get('longitude'))}};
+  const payload = {
+    from:{latitude:String(form.get('latitude')), longitude:String(form.get('longitude'))},
+    off_route_threshold_m:Number(form.get('off-route-threshold')),
+    arrival_radius_m:Number(form.get('arrival-radius'))
+  };
   if (form.get('target-type') === 'waypoint') payload.waypoint_id = id; else payload.path_id = id;
   try {
     fieldResult.textContent = formatFieldNavigation(await postJSON('/api/navigation/field', payload));
@@ -98,4 +108,4 @@ document.addEventListener('caching-tools:map-select', event => {
 });
 
 loadFieldTargets().catch(error => { fieldResult.textContent = `Error: ${error.message}`; });
-const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.23';
+const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.24';
