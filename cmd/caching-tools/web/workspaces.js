@@ -18,9 +18,7 @@ function parseWorkspaceVariables(text) {
   return out;
 }
 
-function variablesText(vars = {}) {
-  return Object.keys(vars).sort().map(k => `${k}=${vars[k]}`).join(', ');
-}
+function variablesText(vars = {}) { return Object.keys(vars).sort().map(k => `${k}=${vars[k]}`).join(', '); }
 
 async function workspaceRequest(url, options = {}) {
   const response = await fetch(url, options);
@@ -70,35 +68,22 @@ function activateWorkspace(x) {
 
 async function persistActiveWorkspace(patch = {}) {
   if (!activeWorkspace) throw new Error('Select a workspace first');
-  const payload = {
-    code: activeWorkspace.code || '', title: activeWorkspace.title, notes: activeWorkspace.notes || '',
-    variables: activeWorkspace.variables || {}, intermediate: activeWorkspace.intermediate || [],
-    latitude_formula: activeWorkspace.latitude_formula || '', longitude_formula: activeWorkspace.longitude_formula || '',
-    final_waypoint_id: activeWorkspace.final_waypoint_id || '', ...patch
-  };
-  activeWorkspace = await workspaceRequest(`/api/mystery-workspaces/${encodeURIComponent(activeWorkspace.id)}`, {
-    method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)
-  });
+  const payload = { code: activeWorkspace.code || '', title: activeWorkspace.title, notes: activeWorkspace.notes || '', variables: activeWorkspace.variables || {}, intermediate: activeWorkspace.intermediate || [], latitude_formula: activeWorkspace.latitude_formula || '', longitude_formula: activeWorkspace.longitude_formula || '', final_waypoint_id: activeWorkspace.final_waypoint_id || '', ...patch };
+  activeWorkspace = await workspaceRequest(`/api/mystery-workspaces/${encodeURIComponent(activeWorkspace.id)}`, {method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
   await loadMysteryWorkspaces();
   return activeWorkspace;
 }
 
 async function addPuzzleIntermediate(text = latestPuzzleResult) {
-  const value = String(text || '').trim();
-  if (!value) throw new Error('No puzzle result available');
-  const next = [...(activeWorkspace?.intermediate || []), value];
-  await persistActiveWorkspace({intermediate: next});
+  const value = String(text || '').trim(); if (!value) throw new Error('No puzzle result available');
+  await persistActiveWorkspace({intermediate:[...(activeWorkspace?.intermediate || []), value]});
   workspaceStatus.textContent = 'Puzzle result added as intermediate result.';
 }
 
 async function setPuzzleVariable(letter, valueText = latestPuzzleResult) {
-  const key = String(letter || '').trim().toUpperCase();
-  if (!/^[A-Z]$/.test(key)) throw new Error('Variable must be A-Z');
-  const match = String(valueText || '').match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/);
-  if (!match) throw new Error('Puzzle result contains no numeric value');
-  const value = Number(match[0]);
-  const variables = {...(activeWorkspace?.variables || {}), [key]: value};
-  await persistActiveWorkspace({variables});
+  const key = String(letter || '').trim().toUpperCase(); if (!/^[A-Z]$/.test(key)) throw new Error('Variable must be A-Z');
+  const match = String(valueText || '').match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/); if (!match) throw new Error('Puzzle result contains no numeric value');
+  const value = Number(match[0]); await persistActiveWorkspace({variables:{...(activeWorkspace?.variables || {}), [key]:value}});
   workspaceStatus.textContent = `Saved ${key}=${value} to active workspace.`;
   if (window.loadFinalWorkspace) window.loadFinalWorkspace(activeWorkspace);
 }
@@ -110,57 +95,68 @@ async function linkFinalWaypointToActiveWorkspace(waypointId) {
   return saved;
 }
 
+function safeBundleName(x) {
+  const base = (x.code || x.title || 'mystery-workspace').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+  return `${base || 'mystery-workspace'}.json`;
+}
+
+async function exportWorkspace(x) {
+  const bundle = await workspaceRequest(`/api/mystery-workspaces/${encodeURIComponent(x.id)}/export`);
+  const blob = new Blob([JSON.stringify(bundle, null, 2) + '\n'], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = safeBundleName(x); document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  workspaceStatus.textContent = `Exported ${x.code || x.title}.`;
+}
+
+async function importWorkspaceFile(file) {
+  if (!file) throw new Error('Choose a mystery JSON bundle first');
+  const text = await file.text(); let bundle;
+  try { bundle = JSON.parse(text); } catch (_) { throw new Error('Invalid JSON bundle'); }
+  const saved = await workspaceRequest('/api/mystery-workspaces/import', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(bundle)});
+  workspaceStatus.textContent = `Imported ${saved.code ? saved.code + ' — ' : ''}${saved.title}.`;
+  await loadMysteryWorkspaces();
+  return saved;
+}
+
 function integrationControls() {
-  let box = document.querySelector('#mystery-workspace-integration');
-  if (box) return box;
-  box = document.createElement('div');
-  box.id = 'mystery-workspace-integration';
-  box.className = 'result';
-  box.innerHTML = '<strong>Active workspace integration</strong><p id="mystery-workspace-puzzle-result">Latest puzzle result: —</p><label>Variable <input id="mystery-workspace-variable" maxlength="1" value="A"></label> <button type="button" id="mystery-workspace-add-intermediate">Add puzzle result</button> <button type="button" id="mystery-workspace-set-variable">Set variable from result</button>';
+  let box = document.querySelector('#mystery-workspace-integration'); if (box) return box;
+  box = document.createElement('div'); box.id = 'mystery-workspace-integration'; box.className = 'result';
+  box.innerHTML = '<strong>Active workspace integration</strong><p id="mystery-workspace-puzzle-result">Latest puzzle result: —</p><label>Variable <input id="mystery-workspace-variable" maxlength="1" value="A"></label> <button type="button" id="mystery-workspace-add-intermediate">Add puzzle result</button> <button type="button" id="mystery-workspace-set-variable">Set variable from result</button><hr><label>Import mystery JSON <input id="mystery-workspace-import-file" type="file" accept="application/json,.json"></label> <button type="button" id="mystery-workspace-import">Import workspace</button>';
   workspaceList.parentElement.insertBefore(box, workspaceList);
   box.querySelector('#mystery-workspace-add-intermediate').addEventListener('click', async()=>{ try { await addPuzzleIntermediate(); } catch(error) { workspaceStatus.textContent=`Error: ${error.message}`; } });
   box.querySelector('#mystery-workspace-set-variable').addEventListener('click', async()=>{ try { await setPuzzleVariable(box.querySelector('#mystery-workspace-variable').value); } catch(error) { workspaceStatus.textContent=`Error: ${error.message}`; } });
+  box.querySelector('#mystery-workspace-import').addEventListener('click', async()=>{ try { await importWorkspaceFile(box.querySelector('#mystery-workspace-import-file').files[0]); } catch(error) { workspaceStatus.textContent=`Error: ${error.message}`; } });
   return box;
 }
 
 async function loadMysteryWorkspaces() {
-  const items = await workspaceRequest('/api/mystery-workspaces');
-  workspaceList.replaceChildren();
+  const items = await workspaceRequest('/api/mystery-workspaces'); workspaceList.replaceChildren();
   if (activeWorkspace) activeWorkspace = items.find(x=>x.id===activeWorkspace.id) || null;
   if (!items.length) { workspaceList.textContent = 'No mystery workspaces yet.'; return; }
   for (const x of items) {
-    const row = document.createElement('div');
-    const pre = document.createElement('pre');
-    const active = activeWorkspace?.id === x.id ? ' [ACTIVE]' : '';
+    const row = document.createElement('div'); const pre = document.createElement('pre'); const active = activeWorkspace?.id === x.id ? ' [ACTIVE]' : '';
     pre.textContent = `${x.code ? x.code + ' — ' : ''}${x.title}${active}\nVariables: ${variablesText(x.variables)}\nFinal: ${x.latitude_formula || '—'} / ${x.longitude_formula || '—'}${x.final_waypoint_id ? `\nWaypoint: ${x.final_waypoint_id}` : ''}`;
     const use = document.createElement('button'); use.type='button'; use.textContent='Use in solver'; use.addEventListener('click',()=>activateWorkspace(x));
+    const exp = document.createElement('button'); exp.type='button'; exp.textContent='Export JSON'; exp.addEventListener('click',()=>exportWorkspace(x).catch(error=>{workspaceStatus.textContent=`Error: ${error.message}`;}));
     const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit'; edit.addEventListener('click',()=>editWorkspace(x));
     const del = document.createElement('button'); del.type='button'; del.textContent='Delete'; del.addEventListener('click',async()=>{ await workspaceRequest(`/api/mystery-workspaces/${encodeURIComponent(x.id)}`,{method:'DELETE'}); if(activeWorkspace?.id===x.id)activeWorkspace=null; await loadMysteryWorkspaces(); });
-    row.append(pre, use, edit, del); workspaceList.append(row);
+    row.append(pre, use, exp, edit, del); workspaceList.append(row);
   }
 }
 
 workspaceForm.addEventListener('submit', async event => {
   event.preventDefault();
   try {
-    const payload = workspacePayload(workspaceForm);
-    const url = editingWorkspaceId ? `/api/mystery-workspaces/${encodeURIComponent(editingWorkspaceId)}` : '/api/mystery-workspaces';
-    const method = editingWorkspaceId ? 'PUT' : 'POST';
+    const payload = workspacePayload(workspaceForm); const url = editingWorkspaceId ? `/api/mystery-workspaces/${encodeURIComponent(editingWorkspaceId)}` : '/api/mystery-workspaces'; const method = editingWorkspaceId ? 'PUT' : 'POST';
     const saved = await workspaceRequest(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    workspaceStatus.textContent = `Saved ${saved.code ? saved.code + ' — ' : ''}${saved.title}.`;
-    if (activeWorkspace?.id === saved.id) activeWorkspace = saved;
-    resetWorkspaceForm(); await loadMysteryWorkspaces();
+    workspaceStatus.textContent = `Saved ${saved.code ? saved.code + ' — ' : ''}${saved.title}.`; if (activeWorkspace?.id === saved.id) activeWorkspace = saved; resetWorkspaceForm(); await loadMysteryWorkspaces();
   } catch (error) { workspaceStatus.textContent = `Error: ${error.message}`; }
 });
 workspaceForm.querySelector('#mystery-workspace-cancel').addEventListener('click', resetWorkspaceForm);
-document.addEventListener('caching-tools:puzzle-result', event => {
-  latestPuzzleResult = String(event.detail?.text || '');
-  const box = integrationControls();
-  box.querySelector('#mystery-workspace-puzzle-result').textContent = `Latest puzzle result: ${latestPuzzleResult || '—'}`;
-});
+document.addEventListener('caching-tools:puzzle-result', event => { latestPuzzleResult = String(event.detail?.text || ''); const box = integrationControls(); box.querySelector('#mystery-workspace-puzzle-result').textContent = `Latest puzzle result: ${latestPuzzleResult || '—'}`; });
 integrationControls();
 loadMysteryWorkspaces().catch(error => { workspaceList.textContent = `Error: ${error.message}`; });
-const footer = document.querySelector('footer'); if (footer) footer.textContent = 'Caching Tools M1.17';
+const footer = document.querySelector('footer'); if (footer) footer.textContent = 'Caching Tools M1.18';
 window.loadMysteryWorkspaces = loadMysteryWorkspaces;
 window.linkFinalWaypointToActiveWorkspace = linkFinalWaypointToActiveWorkspace;
 window.getActiveMysteryWorkspace = () => activeWorkspace;
