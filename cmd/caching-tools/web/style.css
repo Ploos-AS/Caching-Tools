@@ -13,6 +13,13 @@ label { display: grid; gap: 7px; color: #c9d9c3; font-weight: 600; }
 input { width: 100%; border: 1px solid #52714a; border-radius: 10px; background: #111b10; color: #edf3e8; padding: 11px 12px; font: inherit; }
 button { border: 0; border-radius: 10px; background: #a8d58d; color: #10150f; padding: 12px 16px; font: inherit; font-weight: 800; cursor: pointer; }
 .result { min-height: 74px; margin: 18px 0 0; padding: 14px; border-radius: 10px; background: #0c120b; color: #d8e6d2; overflow-x: auto; }
+.map-frame { margin-top: 18px; border: 1px solid #52714a; border-radius: 12px; overflow: hidden; background: #0c120b; aspect-ratio: 16 / 9; }
+#local-map { display: block; width: 100%; height: 100%; }
+.map-grid-line { stroke: #263523; stroke-width: 1; }
+.map-path { fill: none; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.map-route { stroke: #d4b96f; }
+.map-track { stroke: #88c6db; }
+.map-waypoint { fill: #a8d58d; stroke: #10150f; stroke-width: 2; vector-effect: non-scaling-stroke; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 30px; }
 article { border: 1px solid #374934; border-radius: 16px; padding: 22px; background: rgba(27,39,25,.82); }
 article h2, .tool h2 { margin-top: 0; }
