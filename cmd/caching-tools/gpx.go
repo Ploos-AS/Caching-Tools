@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 )
 
 const gpx11Namespace = "http://www.topografix.com/GPX/1/1"
@@ -45,10 +46,10 @@ type gpxTrackSegment struct {
 }
 
 type gpxPoint struct {
-	Latitude  float64 `xml:"lat,attr"`
-	Longitude float64 `xml:"lon,attr"`
-	Elevation float64 `xml:"ele,omitempty"`
-	Time      string  `xml:"time,omitempty"`
+	Latitude  float64  `xml:"lat,attr"`
+	Longitude float64  `xml:"lon,attr"`
+	Elevation *float64 `xml:"ele,omitempty"`
+	Time      string   `xml:"time,omitempty"`
 }
 
 type gpxImportResult struct {
@@ -57,11 +58,20 @@ type gpxImportResult struct {
 }
 
 type gpxPathSummary struct {
-	Name       string  `json:"name"`
-	Points     int     `json:"points"`
-	Segments   int     `json:"segments,omitempty"`
-	DistanceM  float64 `json:"distance_m"`
-	DistanceKM float64 `json:"distance_km"`
+	Name            string   `json:"name"`
+	Points          int      `json:"points"`
+	Segments        int      `json:"segments,omitempty"`
+	DistanceM       float64  `json:"distance_m"`
+	DistanceKM      float64  `json:"distance_km"`
+	ElevationPoints int      `json:"elevation_points,omitempty"`
+	MinElevationM   *float64 `json:"min_elevation_m,omitempty"`
+	MaxElevationM   *float64 `json:"max_elevation_m,omitempty"`
+	ElevationGainM  float64  `json:"elevation_gain_m,omitempty"`
+	ElevationLossM  float64  `json:"elevation_loss_m,omitempty"`
+	TimedPoints     int      `json:"timed_points,omitempty"`
+	DurationS       float64  `json:"duration_s,omitempty"`
+	AverageSpeedKmh *float64 `json:"average_speed_kmh,omitempty"`
+	MaxSpeedKmh     *float64 `json:"max_speed_kmh,omitempty"`
 }
 
 type gpxInspection struct {
@@ -156,16 +166,12 @@ func inspectGPX(r io.Reader) (gpxInspection, error) {
 		if name == "" {
 			name = fmt.Sprintf("Track %d", i+1)
 		}
-		totalPoints := 0
-		totalDistance := 0.0
-		for j, segment := range track.Segments {
-			if err := validateGPXPoints(segment.Points); err != nil {
-				return gpxInspection{}, fmt.Errorf("track %d segment %d: %w", i+1, j+1, err)
-			}
-			totalPoints += len(segment.Points)
-			totalDistance += pathDistance(segment.Points)
+		summary, err := summarizeTrack(track.Segments)
+		if err != nil {
+			return gpxInspection{}, fmt.Errorf("track %d: %w", i+1, err)
 		}
-		result.Tracks = append(result.Tracks, gpxPathSummary{Name: name, Points: totalPoints, Segments: len(track.Segments), DistanceM: totalDistance, DistanceKM: totalDistance / 1000})
+		summary.Name = name
+		result.Tracks = append(result.Tracks, summary)
 	}
 	return result, nil
 }
@@ -174,6 +180,11 @@ func validateGPXPoints(points []gpxPoint) error {
 	for i, p := range points {
 		if p.Latitude < -90 || p.Latitude > 90 || p.Longitude < -180 || p.Longitude > 180 {
 			return fmt.Errorf("point %d has invalid coordinates", i+1)
+		}
+		if strings.TrimSpace(p.Time) != "" {
+			if _, err := time.Parse(time.RFC3339, strings.TrimSpace(p.Time)); err != nil {
+				return fmt.Errorf("point %d has invalid RFC3339 time", i+1)
+			}
 		}
 	}
 	return nil
@@ -186,6 +197,97 @@ func pathDistance(points []gpxPoint) float64 {
 		total += distance
 	}
 	return total
+}
+
+func summarizeTrack(segments []gpxTrackSegment) (gpxPathSummary, error) {
+	summary := gpxPathSummary{Segments: len(segments)}
+	var minEle, maxEle float64
+	haveElevation := false
+	var timedDistance float64
+	var maxSpeedMS float64
+	haveSpeed := false
+
+	for segmentIndex, segment := range segments {
+		if err := validateGPXPoints(segment.Points); err != nil {
+			return gpxPathSummary{}, fmt.Errorf("segment %d: %w", segmentIndex+1, err)
+		}
+		summary.Points += len(segment.Points)
+		summary.DistanceM += pathDistance(segment.Points)
+
+		for i, point := range segment.Points {
+			if point.Elevation != nil {
+				ele := *point.Elevation
+				summary.ElevationPoints++
+				if !haveElevation || ele < minEle {
+					minEle = ele
+				}
+				if !haveElevation || ele > maxEle {
+					maxEle = ele
+				}
+				haveElevation = true
+			}
+			if strings.TrimSpace(point.Time) != "" {
+				summary.TimedPoints++
+			}
+			if i == 0 {
+				continue
+			}
+
+			prev := segment.Points[i-1]
+			if prev.Elevation != nil && point.Elevation != nil {
+				delta := *point.Elevation - *prev.Elevation
+				if delta > 0 {
+					summary.ElevationGainM += delta
+				} else {
+					summary.ElevationLossM -= delta
+				}
+			}
+
+			prevTime, prevOK := parseOptionalGPXTime(prev.Time)
+			currentTime, currentOK := parseOptionalGPXTime(point.Time)
+			if !prevOK || !currentOK {
+				continue
+			}
+			deltaS := currentTime.Sub(prevTime).Seconds()
+			if deltaS <= 0 {
+				continue
+			}
+			distance, _ := distanceAndBearing(prev.Latitude, prev.Longitude, point.Latitude, point.Longitude)
+			summary.DurationS += deltaS
+			timedDistance += distance
+			speedMS := distance / deltaS
+			if !haveSpeed || speedMS > maxSpeedMS {
+				maxSpeedMS = speedMS
+				haveSpeed = true
+			}
+		}
+	}
+
+	summary.DistanceKM = summary.DistanceM / 1000
+	if haveElevation {
+		summary.MinElevationM = float64Ptr(minEle)
+		summary.MaxElevationM = float64Ptr(maxEle)
+	}
+	if summary.DurationS > 0 {
+		summary.AverageSpeedKmh = float64Ptr((timedDistance / summary.DurationS) * 3.6)
+	}
+	if haveSpeed {
+		summary.MaxSpeedKmh = float64Ptr(maxSpeedMS * 3.6)
+	}
+	return summary, nil
+}
+
+func parseOptionalGPXTime(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	parsed, err := time.Parse(time.RFC3339, value)
+	return parsed, err == nil
+}
+
+func float64Ptr(value float64) *float64 {
+	return &value
 }
 
 func encodeGPXWaypoints(items []waypoint) ([]byte, error) {
