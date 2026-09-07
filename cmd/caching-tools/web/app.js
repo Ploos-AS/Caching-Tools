@@ -26,6 +26,8 @@ const waypointForm = document.querySelector('#waypoint-form');
 const waypointList = document.querySelector('#waypoint-list');
 const waypointStatus = document.querySelector('#waypoint-status');
 const waypointCancel = document.querySelector('#waypoint-cancel');
+const gpxImportForm = document.querySelector('#gpx-import-form');
+const gpxStatus = document.querySelector('#gpx-status');
 let waypointCache = [];
 
 function resetWaypointForm() {
@@ -128,6 +130,25 @@ waypointForm.addEventListener('submit', async (event) => {
 });
 
 waypointCancel.addEventListener('click', resetWaypointForm);
+
+gpxImportForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const file = document.querySelector('#gpx-file').files[0];
+  if (!file) return;
+  try {
+    const data = await requestJSON('/api/gpx/waypoints/import', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/gpx+xml'},
+      body: file
+    });
+    gpxStatus.textContent = `Imported ${data.imported} waypoint${data.imported === 1 ? '' : 's'}.`;
+    gpxImportForm.reset();
+    await loadWaypoints();
+  } catch (error) {
+    gpxStatus.textContent = `Error: ${error.message}`;
+  }
+});
+
 loadWaypoints();
 
 document.querySelector('#convert-form').addEventListener('submit', async (event) => {
