@@ -15,7 +15,8 @@ function bindPuzzleForm(id, operation, payload, render) {
     event.preventDefault();
     const out = form.querySelector('.puzzle-output');
     try {
-      const data = await puzzleCall(operation, payload(new FormData(form)));
+      const op = typeof operation === 'function' ? operation(new FormData(form)) : operation;
+      const data = await puzzleCall(op, payload(new FormData(form)));
       out.textContent = render(data);
     } catch (error) {
       out.textContent = `Error: ${error.message}`;
@@ -27,3 +28,8 @@ bindPuzzleForm('#puzzle-a1z26', 'a1z26', f => ({text:f.get('text')}), d => `Valu
 bindPuzzleForm('#puzzle-caesar', 'caesar', f => ({text:f.get('text'), shift:Number(f.get('shift'))}), d => d.result);
 bindPuzzleForm('#puzzle-digits', 'digitsum', f => ({text:f.get('text')}), d => `Digit sum: ${d.digit_sum}\nDigital root: ${d.digital_root}`);
 bindPuzzleForm('#puzzle-substitution', 'substitution', f => ({text:f.get('text'), alphabet:f.get('alphabet'), mapping:f.get('mapping')}), d => d.result);
+bindPuzzleForm('#puzzle-morse', f => f.get('mode'), f => ({text:f.get('text')}), d => d.result);
+bindPuzzleForm('#puzzle-bacon', f => f.get('mode'), f => ({text:f.get('text')}), d => d.result);
+bindPuzzleForm('#puzzle-rot47', 'rot47', f => ({text:f.get('text')}), d => d.result);
+bindPuzzleForm('#puzzle-base', 'base', f => ({text:f.get('text'), from_base:Number(f.get('from-base')), to_base:Number(f.get('to-base'))}), d => d.result);
+bindPuzzleForm('#puzzle-keypad', 'keypad', f => ({text:f.get('text')}), d => `Values: ${d.values.join(' ')}\nSum: ${d.sum}`);
