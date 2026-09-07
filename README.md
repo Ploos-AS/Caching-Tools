@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.6 provides a useful coordinate, grid, waypoint and GPX toolbox:
+M1.7 provides a useful coordinate, grid, waypoint and GPX toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - latitude/longitude and hemisphere validation
@@ -17,19 +17,19 @@ M1.6 provides a useful coordinate, grid, waypoint and GPX toolbox:
 - 1 m precision MGRS generation
 - Norway and Svalbard UTM zone exceptions
 - local waypoint create/list/edit/delete
-- waypoint persistence under `/data`
+- waypoint persistence under `/data/waypoints.json`
 - GPX 1.1 waypoint import/export
-- GPX 1.1 route inspection with point count and distance
-- GPX 1.1 track inspection with segment count, point count and distance
+- GPX 1.1 route and track inspection
 - segment-aware track distance calculation
-- track min/max elevation and cumulative gain/loss
-- track duration from adjacent RFC3339 timestamps
-- average and maximum speed from valid timed legs
-- safe handling of missing elevation/time metadata
+- elevation gain/loss, duration and speed statistics
+- persistent routes and tracks under `/data/paths.json`
+- full route point and track segment preservation
+- preserved elevation and timestamps for saved tracks
+- list/get/delete APIs for saved routes and tracks
 - interactive web UI and JSON/GPX APIs
 - Go unit and HTTP tests
 
-Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_6.md](docs/M1_6.md).
+Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_7.md](docs/M1_7.md).
 
 ## Run with Go
 
@@ -39,7 +39,7 @@ go run ./cmd/caching-tools
 
 Open <http://localhost:8080>.
 
-For local development, set `CACHING_TOOLS_DATA_DIR` if you do not want waypoint data under `/data`.
+For local development, set `CACHING_TOOLS_DATA_DIR` if you do not want persistent data under `/data`.
 
 ## Run with Docker/Podman Compose
 
@@ -49,7 +49,7 @@ docker compose up --build
 
 Then open <http://localhost:8080>.
 
-The compose volume mounted at `/data` keeps saved and imported waypoints across container recreation.
+The compose volume mounted at `/data` keeps saved waypoints, routes and tracks across container recreation.
 
 ## Health check
 
@@ -86,7 +86,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.4: GPX 1.1 waypoint import/export
 - M1.5: GPX track and route inspection
 - M1.6: elevation/time-aware track statistics
-- Next: persistent track/route objects and richer track analysis
+- M1.7: persistent route and track objects
+- Next: GPX export/editing for saved routes/tracks and map visualization
 
 ## License
 
