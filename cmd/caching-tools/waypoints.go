@@ -90,6 +90,40 @@ func (s *waypointStore) create(req waypointRequest) (waypoint, error) {
 	return item, nil
 }
 
+func (s *waypointStore) importMany(requests []waypointRequest) ([]waypoint, error) {
+	validated := make([]waypoint, 0, len(requests))
+	base := time.Now().UnixNano()
+	for i, req := range requests {
+		lat, lon, err := validateWaypointRequest(req)
+		if err != nil {
+			return nil, err
+		}
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		validated = append(validated, waypoint{
+			ID:        fmt.Sprintf("wp-%x", base+int64(i)),
+			Name:      strings.TrimSpace(req.Name),
+			Latitude:  lat,
+			Longitude: lon,
+			Type:      strings.TrimSpace(req.Type),
+			Comment:   strings.TrimSpace(req.Comment),
+			CreatedAt: now,
+			UpdatedAt: now,
+		})
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	items, err := s.loadLocked()
+	if err != nil {
+		return nil, err
+	}
+	items = append(items, validated...)
+	if err := s.saveLocked(items); err != nil {
+		return nil, err
+	}
+	return validated, nil
+}
+
 func (s *waypointStore) update(id string, req waypointRequest) (waypoint, error) {
 	lat, lon, err := validateWaypointRequest(req)
 	if err != nil {
