@@ -28,6 +28,7 @@ const waypointStatus = document.querySelector('#waypoint-status');
 const waypointCancel = document.querySelector('#waypoint-cancel');
 const gpxImportForm = document.querySelector('#gpx-import-form');
 const gpxStatus = document.querySelector('#gpx-status');
+const gpxInspection = document.querySelector('#gpx-inspection');
 let waypointCache = [];
 
 function resetWaypointForm() {
@@ -131,9 +132,47 @@ waypointForm.addEventListener('submit', async (event) => {
 
 waypointCancel.addEventListener('click', resetWaypointForm);
 
+function selectedGPXFile() {
+  return document.querySelector('#gpx-file').files[0];
+}
+
+function renderGPXInspection(data) {
+  const lines = [
+    `GPX ${data.version}${data.creator ? ` — ${data.creator}` : ''}`,
+    `Waypoints: ${data.waypoints}`,
+    `Routes: ${data.routes.length}`
+  ];
+  for (const route of data.routes) {
+    lines.push(`  ${route.name}: ${route.points} points, ${route.distance_km.toFixed(3)} km`);
+  }
+  lines.push(`Tracks: ${data.tracks.length}`);
+  for (const track of data.tracks) {
+    lines.push(`  ${track.name}: ${track.points} points, ${track.segments} segment${track.segments === 1 ? '' : 's'}, ${track.distance_km.toFixed(3)} km`);
+  }
+  gpxInspection.textContent = lines.join('\n');
+}
+
+document.querySelector('#gpx-inspect').addEventListener('click', async () => {
+  const file = selectedGPXFile();
+  if (!file) {
+    gpxInspection.textContent = 'Select a GPX file first.';
+    return;
+  }
+  try {
+    const data = await requestJSON('/api/gpx/inspect', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/gpx+xml'},
+      body: file
+    });
+    renderGPXInspection(data);
+  } catch (error) {
+    gpxInspection.textContent = `Error: ${error.message}`;
+  }
+});
+
 gpxImportForm.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const file = document.querySelector('#gpx-file').files[0];
+  const file = selectedGPXFile();
   if (!file) return;
   try {
     const data = await requestJSON('/api/gpx/waypoints/import', {
