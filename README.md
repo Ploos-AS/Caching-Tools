@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.24 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.25 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -22,8 +22,13 @@ M1.24 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - configurable off-route threshold and arrival radius
 - explicit `on-route`, `off-route`, `next-point-arrival`, `go-to` and `arrived` field statuses
 - back-on-track guidance points to the nearest path position when outside the deviation threshold
+- live browser navigation sessions using `watchPosition`
+- continuous distance, bearing, progress and guidance refresh during live mode
+- serialized live navigation requests so newer GPS positions replace stale pending updates
+- in-memory session breadcrumbs with timestamp, coordinate and browser-reported accuracy
+- breadcrumbs are never persisted under `/data` and are cleared on new sessions or page reload
 - track progress respects segment boundaries without bridging segment gaps
-- optional browser geolocation as local field-navigation input
+- optional one-shot browser geolocation as local field-navigation input
 - map selection can become the field-navigation target
 - bearing/bearing, bearing/distance and circle/circle intersections
 - direct save of intersection solutions as local waypoints
@@ -64,7 +69,7 @@ M1.24 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_24.md](docs/M1_24.md).
+See [docs/M1_25.md](docs/M1_25.md).
 
 ## Run with Go
 
@@ -120,7 +125,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.22: local field navigation to waypoints and nearest/cross-track navigation for saved paths
 - M1.23: along-path progress, remaining distance, next-point distance and forward-bearing guidance
 - M1.24: configurable route-deviation alerts, back-on-track status and arrival guidance
-- Next: live navigation refresh / breadcrumb sessions or additional well-defined CRS families
+- M1.25: live geolocation navigation sessions with continuous guidance and ephemeral breadcrumbs
+- Next: optional field-session GPX recording/export or additional well-defined CRS families
 
 ## License
 
