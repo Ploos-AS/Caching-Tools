@@ -33,6 +33,10 @@ type pathImportResult struct {
 	Paths    []pathResponse `json:"paths"`
 }
 
+type pathRenameRequest struct {
+	Name string `json:"name"`
+}
+
 type pathStore struct {
 	mu   sync.Mutex
 	path string
@@ -69,6 +73,31 @@ func (s *pathStore) get(id string) (storedPath, error) {
 		if item.ID == id {
 			return item, nil
 		}
+	}
+	return storedPath{}, os.ErrNotExist
+}
+
+func (s *pathStore) rename(id, name string) (storedPath, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return storedPath{}, errors.New("name is required")
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	items, err := s.loadLocked()
+	if err != nil {
+		return storedPath{}, err
+	}
+	for i := range items {
+		if items[i].ID != id {
+			continue
+		}
+		items[i].Name = name
+		if err := s.saveLocked(items); err != nil {
+			return storedPath{}, err
+		}
+		return items[i], nil
 	}
 	return storedPath{}, os.ErrNotExist
 }
