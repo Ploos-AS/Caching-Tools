@@ -73,3 +73,6 @@ crsSection.querySelector('#crs-form').addEventListener('submit', async event => 
     output.textContent = `Error: ${error.message}`;
   }
 });
+
+const crsFooter = document.querySelector('footer');
+if (crsFooter) crsFooter.textContent = 'Caching Tools M1.21';
