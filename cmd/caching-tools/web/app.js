@@ -136,6 +136,14 @@ function selectedGPXFile() {
   return document.querySelector('#gpx-file').files[0];
 }
 
+function formatDuration(seconds) {
+  const total = Math.round(seconds);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return `${hours}h ${minutes}m ${secs}s`;
+}
+
 function renderGPXInspection(data) {
   const lines = [
     `GPX ${data.version}${data.creator ? ` — ${data.creator}` : ''}`,
@@ -148,6 +156,16 @@ function renderGPXInspection(data) {
   lines.push(`Tracks: ${data.tracks.length}`);
   for (const track of data.tracks) {
     lines.push(`  ${track.name}: ${track.points} points, ${track.segments} segment${track.segments === 1 ? '' : 's'}, ${track.distance_km.toFixed(3)} km`);
+    if (track.elevation_points) {
+      lines.push(`    Elevation: ${track.min_elevation_m.toFixed(1)}–${track.max_elevation_m.toFixed(1)} m, +${track.elevation_gain_m.toFixed(1)} / -${track.elevation_loss_m.toFixed(1)} m (${track.elevation_points} points)`);
+    }
+    if (track.duration_s) {
+      const speed = track.average_speed_kmh == null ? '' : `, avg ${track.average_speed_kmh.toFixed(2)} km/h`;
+      const maxSpeed = track.max_speed_kmh == null ? '' : `, max ${track.max_speed_kmh.toFixed(2)} km/h`;
+      lines.push(`    Time: ${formatDuration(track.duration_s)}${speed}${maxSpeed} (${track.timed_points} timed points)`);
+    } else if (track.timed_points) {
+      lines.push(`    Time: ${track.timed_points} timed points, insufficient adjacent timestamps for duration/speed`);
+    }
   }
   gpxInspection.textContent = lines.join('\n');
 }
