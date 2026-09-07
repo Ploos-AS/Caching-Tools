@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.3 provides a useful coordinate, grid and waypoint toolbox:
+M1.4 provides a useful coordinate, grid, waypoint and GPX toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - latitude/longitude and hemisphere validation
@@ -18,10 +18,13 @@ M1.3 provides a useful coordinate, grid and waypoint toolbox:
 - Norway and Svalbard UTM zone exceptions
 - local waypoint create/list/edit/delete
 - waypoint persistence under `/data`
-- interactive web UI and JSON APIs
+- GPX 1.1 waypoint import
+- GPX 1.1 waypoint export
+- atomic validation before GPX import is persisted
+- interactive web UI and JSON/GPX APIs
 - Go unit and HTTP tests
 
-Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_3.md](docs/M1_3.md).
+Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_4.md](docs/M1_4.md).
 
 ## Run with Go
 
@@ -41,7 +44,7 @@ docker compose up --build
 
 Then open <http://localhost:8080>.
 
-The compose volume mounted at `/data` keeps saved waypoints across container recreation.
+The compose volume mounted at `/data` keeps saved and imported waypoints across container recreation.
 
 ## Health check
 
@@ -75,7 +78,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.1: waypoint projection / destination point
 - M1.2: WGS84/UTM conversion and MGRS output
 - M1.3: local persistent waypoint CRUD
-- Next: GPX 1.1 waypoint import/export
+- M1.4: GPX 1.1 waypoint import/export
+- Next: GPX track and route inspection
 
 ## License
 
