@@ -73,6 +73,8 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/waypoints", func(w http.ResponseWriter, r *http.Request) { handleWaypointCreate(w, r, waypoints) })
 	mux.HandleFunc("PUT /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointUpdate(w, r, waypoints) })
 	mux.HandleFunc("DELETE /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointDelete(w, r, waypoints) })
+	mux.HandleFunc("POST /api/gpx/waypoints/import", func(w http.ResponseWriter, r *http.Request) { handleGPXImport(w, r, waypoints) })
+	mux.HandleFunc("GET /api/gpx/waypoints/export", func(w http.ResponseWriter, _ *http.Request) { handleGPXExport(w, waypoints) })
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	return mux, nil
 }
@@ -233,6 +235,42 @@ func handleWaypointDelete(w http.ResponseWriter, r *http.Request, store *waypoin
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func handleGPXImport(w http.ResponseWriter, r *http.Request, store *waypointStore) {
+	defer r.Body.Close()
+	requests, err := parseGPXWaypoints(r.Body)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	items, err := store.importMany(requests)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	views := make([]waypointResponse, 0, len(items))
+	for _, item := range items {
+		views = append(views, waypointView(item))
+	}
+	writeJSON(w, http.StatusCreated, gpxImportResult{Imported: len(views), Waypoints: views})
+}
+
+func handleGPXExport(w http.ResponseWriter, store *waypointStore) {
+	items, err := store.list()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	data, err := encodeGPXWaypoints(items)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/gpx+xml; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="caching-tools-waypoints.gpx"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
 }
 
 func parsePoint(req coordinateRequest) (float64, float64, error) {
