@@ -21,7 +21,7 @@ func TestLocalMapAssetsAreServed(t *testing.T) {
 	for _, want := range []string{
 		`id="local-map"`, `id="map-refresh"`, `id="map-zoom-in"`, `id="map-zoom-out"`,
 		`id="map-fit-all"`, `id="map-fit-selection"`, `id="map-selection"`,
-		`src="/map-link.js"`, `src="/map.js"`, `Caching Tools M1.12`,
+		`src="/map-link.js"`, `src="/map.js"`, `Caching Tools M1.13`,
 	} {
 		if !strings.Contains(page.Body.String(), want) {
 			t.Fatalf("missing %q from page", want)
