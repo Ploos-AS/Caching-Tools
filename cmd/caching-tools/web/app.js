@@ -29,6 +29,8 @@ const waypointCancel = document.querySelector('#waypoint-cancel');
 const gpxImportForm = document.querySelector('#gpx-import-form');
 const gpxStatus = document.querySelector('#gpx-status');
 const gpxInspection = document.querySelector('#gpx-inspection');
+const pathList = document.querySelector('#path-list');
+const pathStatus = document.querySelector('#path-status');
 let waypointCache = [];
 
 function resetWaypointForm() {
@@ -144,6 +146,52 @@ function formatDuration(seconds) {
   return `${hours}h ${minutes}m ${secs}s`;
 }
 
+function formatPathSummary(item) {
+  const summary = item.summary;
+  const bits = [`${item.kind}: ${summary.name}`, `${summary.points} points`, `${summary.distance_km.toFixed(3)} km`];
+  if (summary.segments) bits.push(`${summary.segments} segment${summary.segments === 1 ? '' : 's'}`);
+  if (summary.elevation_points) bits.push(`+${summary.elevation_gain_m.toFixed(1)}/-${summary.elevation_loss_m.toFixed(1)} m`);
+  if (summary.duration_s) bits.push(formatDuration(summary.duration_s));
+  return bits.join(' · ');
+}
+
+function renderPaths(items) {
+  pathList.replaceChildren();
+  if (items.length === 0) {
+    pathList.textContent = 'No saved tracks or routes.';
+    return;
+  }
+  for (const item of items) {
+    const row = document.createElement('div');
+    const text = document.createElement('pre');
+    text.textContent = formatPathSummary(item);
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = 'Delete';
+    del.addEventListener('click', () => deletePath(item.id));
+    row.append(text, del);
+    pathList.append(row);
+  }
+}
+
+async function loadPaths() {
+  try {
+    renderPaths(await requestJSON('/api/paths'));
+  } catch (error) {
+    pathList.textContent = `Error: ${error.message}`;
+  }
+}
+
+async function deletePath(id) {
+  try {
+    await requestJSON(`/api/paths/${encodeURIComponent(id)}`, {method: 'DELETE'});
+    pathStatus.textContent = 'Track/route deleted.';
+    await loadPaths();
+  } catch (error) {
+    pathStatus.textContent = `Error: ${error.message}`;
+  }
+}
+
 function renderGPXInspection(data) {
   const lines = [
     `GPX ${data.version}${data.creator ? ` — ${data.creator}` : ''}`,
@@ -188,6 +236,23 @@ document.querySelector('#gpx-inspect').addEventListener('click', async () => {
   }
 });
 
+document.querySelector('#gpx-save-paths').addEventListener('click', async () => {
+  const file = selectedGPXFile();
+  if (!file) {
+    pathStatus.textContent = 'Select a GPX file first.';
+    return;
+  }
+  try {
+    const data = await requestJSON('/api/gpx/paths/import', {
+      method: 'POST', headers: {'Content-Type': 'application/gpx+xml'}, body: file
+    });
+    pathStatus.textContent = `Saved ${data.imported} track/route object${data.imported === 1 ? '' : 's'}.`;
+    await loadPaths();
+  } catch (error) {
+    pathStatus.textContent = `Error: ${error.message}`;
+  }
+});
+
 gpxImportForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const file = selectedGPXFile();
@@ -199,7 +264,6 @@ gpxImportForm.addEventListener('submit', async (event) => {
       body: file
     });
     gpxStatus.textContent = `Imported ${data.imported} waypoint${data.imported === 1 ? '' : 's'}.`;
-    gpxImportForm.reset();
     await loadWaypoints();
   } catch (error) {
     gpxStatus.textContent = `Error: ${error.message}`;
@@ -207,6 +271,7 @@ gpxImportForm.addEventListener('submit', async (event) => {
 });
 
 loadWaypoints();
+loadPaths();
 
 document.querySelector('#convert-form').addEventListener('submit', async (event) => {
   event.preventDefault();
