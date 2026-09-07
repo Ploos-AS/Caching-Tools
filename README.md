@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.15 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
+M1.16 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -15,8 +15,10 @@ M1.15 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - bearing/bearing, bearing/distance and circle/circle intersections
 - direct save of intersection solutions as local waypoints
 - final-coordinate formula solver with variables A–Z
-- arithmetic expressions embedded in DD/DMM/DMS coordinate text
-- save solved finals as persistent `final` waypoints
+- persistent mystery workspaces under `/data/mystery-workspaces.json`
+- workspace GC code/title, notes, A–Z variables and intermediate results
+- workspace latitude/longitude final formulas and saved final-waypoint reference
+- create/edit/delete mystery workspace UI and CRUD API
 - A1Z26 / letter values and sums
 - Caesar / ROT shifts and ROT47
 - Morse encode/decode
@@ -35,7 +37,7 @@ M1.15 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_15.md](docs/M1_15.md).
+See [docs/M1_16.md](docs/M1_16.md).
 
 ## Run with Go
 
@@ -55,7 +57,7 @@ docker compose up --build
 
 Then open <http://localhost:8080>.
 
-The compose volume mounted at `/data` keeps saved waypoints, routes and tracks across container recreation.
+The compose volume mounted at `/data` keeps saved waypoints, routes, tracks and mystery workspaces across container recreation.
 
 ## Product direction
 
@@ -82,7 +84,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.13: geocaching final-coordinate formula solver
 - M1.14: A1Z26, Caesar/ROT, digit checksum and substitution puzzle helpers
 - M1.15: Morse, Bacon, ROT47, base conversion and phone/keypad puzzle helpers
-- Next: persistent mystery workspace or richer route/track editing
+- M1.16: persistent mystery workspaces with notes, variables, formulas and final-waypoint linkage
+- Next: deeper workspace integration or richer route/track editing
 
 ## License
 
