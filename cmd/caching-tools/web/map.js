@@ -10,17 +10,25 @@ function svgElement(name, attrs = {}) {
 
 function pathPoints(item) {
   if (item.kind === 'route') return [item.route || []];
-  return (item.segments || []).map((segment) => segment.points || []);
+  return (item.segments || []).map((segment) => segment.points || segment.Points || []);
+}
+
+function pointLat(point) {
+  return point.latitude ?? point.Latitude;
+}
+
+function pointLon(point) {
+  return point.longitude ?? point.Longitude;
 }
 
 function collectCoordinates(waypoints, paths) {
   const points = waypoints.map((w) => ({lat: w.point.latitude, lon: w.point.longitude}));
   for (const item of paths) {
     for (const segment of pathPoints(item)) {
-      for (const point of segment) points.push({lat: point.latitude, lon: point.longitude});
+      for (const point of segment) points.push({lat: pointLat(point), lon: pointLon(point)});
     }
   }
-  return points;
+  return points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lon));
 }
 
 function mapProjection(points, width, height) {
@@ -70,9 +78,10 @@ async function refreshLocalMap() {
 
     for (const item of paths) {
       for (const segment of pathPoints(item)) {
-        if (!segment.length) continue;
-        const coords = segment.map((p) => {
-          const xy = project(p.latitude, p.longitude);
+        const valid = segment.filter((p) => Number.isFinite(pointLat(p)) && Number.isFinite(pointLon(p)));
+        if (!valid.length) continue;
+        const coords = valid.map((p) => {
+          const xy = project(pointLat(p), pointLon(p));
           return `${xy.x.toFixed(2)},${xy.y.toFixed(2)}`;
         }).join(' ');
         const polyline = svgElement('polyline', {points: coords, class: `map-path map-${item.kind}`});
