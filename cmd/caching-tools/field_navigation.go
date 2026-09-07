@@ -6,10 +6,17 @@ import (
 	"os"
 )
 
+const (
+	defaultOffRouteThresholdM = 50.0
+	defaultArrivalRadiusM     = 20.0
+)
+
 type fieldNavigationRequest struct {
-	From       coordinateRequest `json:"from"`
-	WaypointID string            `json:"waypoint_id,omitempty"`
-	PathID     string            `json:"path_id,omitempty"`
+	From               coordinateRequest `json:"from"`
+	WaypointID         string            `json:"waypoint_id,omitempty"`
+	PathID             string            `json:"path_id,omitempty"`
+	OffRouteThresholdM *float64          `json:"off_route_threshold_m,omitempty"`
+	ArrivalRadiusM     *float64          `json:"arrival_radius_m,omitempty"`
 }
 
 type fieldPathPosition struct {
@@ -27,6 +34,15 @@ type fieldPathProgress struct {
 	ForwardBearingDeg  float64       `json:"forward_bearing_deg"`
 }
 
+type fieldGuidance struct {
+	Status             string  `json:"status"`
+	Message            string  `json:"message"`
+	OffRoute           bool    `json:"off_route"`
+	Arrived            bool    `json:"arrived"`
+	OffRouteThresholdM float64 `json:"off_route_threshold_m"`
+	ArrivalRadiusM     float64 `json:"arrival_radius_m"`
+}
+
 type fieldNavigationResponse struct {
 	Kind              string             `json:"kind"`
 	ID                string             `json:"id"`
@@ -39,10 +55,15 @@ type fieldNavigationResponse struct {
 	CrossTrackM       *float64           `json:"cross_track_m,omitempty"`
 	NearestPath       *fieldPathPosition `json:"nearest_path,omitempty"`
 	Progress          *fieldPathProgress `json:"progress,omitempty"`
+	Guidance          fieldGuidance      `json:"guidance"`
 }
 
 func fieldNavigate(req fieldNavigationRequest, waypoints *waypointStore, paths *pathStore) (fieldNavigationResponse, error) {
 	lat, lon, err := parsePoint(req.From)
+	if err != nil {
+		return fieldNavigationResponse{}, err
+	}
+	offRouteThreshold, arrivalRadius, err := navigationThresholds(req)
 	if err != nil {
 		return fieldNavigationResponse{}, err
 	}
@@ -59,10 +80,12 @@ func fieldNavigate(req fieldNavigationRequest, waypoints *waypointStore, paths *
 				continue
 			}
 			distance, bearing := distanceAndBearing(lat, lon, item.Latitude, item.Longitude)
+			guidance := waypointGuidance(distance, offRouteThreshold, arrivalRadius)
 			return fieldNavigationResponse{
 				Kind: "waypoint", ID: item.ID, Name: item.Name,
 				From: point(lat, lon), Target: point(item.Latitude, item.Longitude),
 				DistanceM: distance, DistanceKM: distance / 1000, BearingDeg: bearing,
+				Guidance: guidance,
 			}, nil
 		}
 		return fieldNavigationResponse{}, os.ErrNotExist
@@ -82,12 +105,62 @@ func fieldNavigate(req fieldNavigationRequest, waypoints *waypointStore, paths *
 		return fieldNavigationResponse{}, err
 	}
 	cross := distance
+	guidance := pathGuidance(distance, progress, offRouteThreshold, arrivalRadius)
 	return fieldNavigationResponse{
 		Kind: item.Kind, ID: item.ID, Name: item.Name,
 		From: point(lat, lon), Target: point(nearestLat, nearestLon),
 		DistanceM: distance, DistanceKM: distance / 1000, BearingDeg: bearing,
-		CrossTrackM: &cross, NearestPath: &position, Progress: &progress,
+		CrossTrackM: &cross, NearestPath: &position, Progress: &progress, Guidance: guidance,
 	}, nil
+}
+
+func navigationThresholds(req fieldNavigationRequest) (float64, float64, error) {
+	offRoute := defaultOffRouteThresholdM
+	arrival := defaultArrivalRadiusM
+	if req.OffRouteThresholdM != nil {
+		offRoute = *req.OffRouteThresholdM
+	}
+	if req.ArrivalRadiusM != nil {
+		arrival = *req.ArrivalRadiusM
+	}
+	if math.IsNaN(offRoute) || math.IsInf(offRoute, 0) || offRoute <= 0 {
+		return 0, 0, errors.New("off_route_threshold_m must be a finite positive number")
+	}
+	if math.IsNaN(arrival) || math.IsInf(arrival, 0) || arrival <= 0 {
+		return 0, 0, errors.New("arrival_radius_m must be a finite positive number")
+	}
+	return offRoute, arrival, nil
+}
+
+func waypointGuidance(distance, offRouteThreshold, arrivalRadius float64) fieldGuidance {
+	guidance := fieldGuidance{Status: "go-to", Message: "Continue toward waypoint.", OffRouteThresholdM: offRouteThreshold, ArrivalRadiusM: arrivalRadius}
+	if distance <= arrivalRadius {
+		guidance.Status = "arrived"
+		guidance.Message = "Inside waypoint arrival radius."
+		guidance.Arrived = true
+	}
+	return guidance
+}
+
+func pathGuidance(crossTrack float64, progress fieldPathProgress, offRouteThreshold, arrivalRadius float64) fieldGuidance {
+	guidance := fieldGuidance{Status: "on-route", Message: "On route. Continue toward the next path point.", OffRouteThresholdM: offRouteThreshold, ArrivalRadiusM: arrivalRadius}
+	if progress.RemainingM <= arrivalRadius {
+		guidance.Status = "arrived"
+		guidance.Message = "Inside path arrival radius."
+		guidance.Arrived = true
+		return guidance
+	}
+	if crossTrack > offRouteThreshold {
+		guidance.Status = "off-route"
+		guidance.Message = "Off route. Follow bearing to the nearest path point to get back on track."
+		guidance.OffRoute = true
+		return guidance
+	}
+	if progress.NextPointDistanceM <= arrivalRadius {
+		guidance.Status = "next-point-arrival"
+		guidance.Message = "Inside arrival radius of the next path point; continue along the path."
+	}
+	return guidance
 }
 
 func nearestPointOnStoredPath(lat, lon float64, item storedPath) (float64, float64, fieldPathPosition, float64, error) {
