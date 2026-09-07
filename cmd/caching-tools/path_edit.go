@@ -8,10 +8,12 @@ import (
 )
 
 type pathEditRequest struct {
-	Operation string `json:"operation"`
-	Segment   int    `json:"segment,omitempty"`
-	Point     int    `json:"point,omitempty"`
-	Target    int    `json:"target,omitempty"`
+	Operation string  `json:"operation"`
+	Segment   int     `json:"segment,omitempty"`
+	Point     int     `json:"point,omitempty"`
+	Target    int     `json:"target,omitempty"`
+	Latitude  float64 `json:"latitude,omitempty"`
+	Longitude float64 `json:"longitude,omitempty"`
 }
 
 func (s *pathStore) edit(id string, req pathEditRequest) (storedPath, error) {
@@ -57,6 +59,13 @@ func editStoredPath(item *storedPath, op string, req pathEditRequest) error {
 	}
 }
 
+func validatePointCoordinates(lat, lon float64) error {
+	if lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+		return errors.New("point has invalid coordinates")
+	}
+	return nil
+}
+
 func editRoute(item *storedPath, op string, req pathEditRequest) error {
 	switch op {
 	case "delete-point":
@@ -72,6 +81,16 @@ func editRoute(item *storedPath, op string, req pathEditRequest) error {
 		var err error
 		item.Route, err = moveGPXPoint(item.Route, req.Point, req.Target)
 		return err
+	case "set-point":
+		if req.Point < 0 || req.Point >= len(item.Route) {
+			return errors.New("point index out of range")
+		}
+		if err := validatePointCoordinates(req.Latitude, req.Longitude); err != nil {
+			return err
+		}
+		item.Route[req.Point].Latitude = req.Latitude
+		item.Route[req.Point].Longitude = req.Longitude
+		return nil
 	default:
 		return fmt.Errorf("operation %q is not valid for routes", op)
 	}
@@ -101,6 +120,17 @@ func editTrack(item *storedPath, op string, req pathEditRequest) error {
 			return err
 		}
 		item.Segments[req.Segment].Points = points
+		return nil
+	case "set-point":
+		points := item.Segments[req.Segment].Points
+		if req.Point < 0 || req.Point >= len(points) {
+			return errors.New("point index out of range")
+		}
+		if err := validatePointCoordinates(req.Latitude, req.Longitude); err != nil {
+			return err
+		}
+		item.Segments[req.Segment].Points[req.Point].Latitude = req.Latitude
+		item.Segments[req.Segment].Points[req.Point].Longitude = req.Longitude
 		return nil
 	case "split-segment":
 		points := item.Segments[req.Segment].Points
