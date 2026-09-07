@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.4 provides a useful coordinate, grid, waypoint and GPX toolbox:
+M1.5 provides a useful coordinate, grid, waypoint and GPX toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - latitude/longitude and hemisphere validation
@@ -18,13 +18,14 @@ M1.4 provides a useful coordinate, grid, waypoint and GPX toolbox:
 - Norway and Svalbard UTM zone exceptions
 - local waypoint create/list/edit/delete
 - waypoint persistence under `/data`
-- GPX 1.1 waypoint import
-- GPX 1.1 waypoint export
-- atomic validation before GPX import is persisted
+- GPX 1.1 waypoint import/export
+- GPX 1.1 route inspection with point count and distance
+- GPX 1.1 track inspection with segment count, point count and distance
+- segment-aware track distance calculation
 - interactive web UI and JSON/GPX APIs
 - Go unit and HTTP tests
 
-Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_4.md](docs/M1_4.md).
+Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_5.md](docs/M1_5.md).
 
 ## Run with Go
 
@@ -79,7 +80,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.2: WGS84/UTM conversion and MGRS output
 - M1.3: local persistent waypoint CRUD
 - M1.4: GPX 1.1 waypoint import/export
-- Next: GPX track and route inspection
+- M1.5: GPX track and route inspection
+- Next: elevation/time-aware track statistics and persistent track/route objects
 
 ## License
 
