@@ -24,13 +24,13 @@ func TestFieldNavigationAPI(t *testing.T) {
 	body := `{"from":{"latitude":"60","longitude":"10"},"waypoint_id":"`+wp.ID+`"}`
 	rr := httptest.NewRecorder(); h.ServeHTTP(rr,httptest.NewRequest(http.MethodPost,"/api/navigation/field",strings.NewReader(body)))
 	if rr.Code != http.StatusOK { t.Fatalf("status=%d body=%s",rr.Code,rr.Body.String()) }
-	if !strings.Contains(rr.Body.String(),`"kind":"waypoint"`) || !strings.Contains(rr.Body.String(),wp.ID) { t.Fatalf("body=%s",rr.Body.String()) }
+	for _, want := range []string{`"kind":"waypoint"`, wp.ID, `"guidance"`, `"status":"go-to"`, `"arrival_radius_m":20`} { if !strings.Contains(rr.Body.String(),want) { t.Fatalf("missing %s in %s",want,rr.Body.String()) } }
 	if strings.Contains(rr.Body.String(),`"progress"`) { t.Fatalf("waypoint response unexpectedly has progress: %s",rr.Body.String()) }
 
-	body = `{"from":{"latitude":"60.1","longitude":"10.5"},"path_id":"path-api"}`
+	body = `{"from":{"latitude":"60.1","longitude":"10.5"},"path_id":"path-api","off_route_threshold_m":25,"arrival_radius_m":15}`
 	rr = httptest.NewRecorder(); h.ServeHTTP(rr,httptest.NewRequest(http.MethodPost,"/api/navigation/field",strings.NewReader(body)))
 	if rr.Code != http.StatusOK { t.Fatalf("status=%d body=%s",rr.Code,rr.Body.String()) }
-	for _, want := range []string{`"kind":"route"`,`"cross_track_m"`,`"nearest_path"`,`"progress"`,`"along_m"`,`"remaining_m"`,`"progress_percent"`,`"next_point"`,`"forward_bearing_deg"`} { if !strings.Contains(rr.Body.String(),want) { t.Fatalf("missing %s in %s",want,rr.Body.String()) } }
+	for _, want := range []string{`"kind":"route"`,`"cross_track_m"`,`"nearest_path"`,`"progress"`,`"along_m"`,`"remaining_m"`,`"progress_percent"`,`"next_point"`,`"forward_bearing_deg"`,`"guidance"`,`"status":"off-route"`,`"off_route":true`,`"off_route_threshold_m":25`,`"arrival_radius_m":15`} { if !strings.Contains(rr.Body.String(),want) { t.Fatalf("missing %s in %s",want,rr.Body.String()) } }
 }
 
 func TestFieldNavigationAPIBadTarget(t *testing.T) {
@@ -38,4 +38,7 @@ func TestFieldNavigationAPIBadTarget(t *testing.T) {
 	h,err:=newHandler(); if err!=nil{t.Fatal(err)}
 	rr:=httptest.NewRecorder(); h.ServeHTTP(rr,httptest.NewRequest(http.MethodPost,"/api/navigation/field",strings.NewReader(`{"from":{"latitude":"60","longitude":"10"}}`)))
 	if rr.Code!=http.StatusBadRequest { t.Fatalf("status=%d body=%s",rr.Code,rr.Body.String()) }
+
+	rr=httptest.NewRecorder(); h.ServeHTTP(rr,httptest.NewRequest(http.MethodPost,"/api/navigation/field",strings.NewReader(`{"from":{"latitude":"60","longitude":"10"},"waypoint_id":"missing","arrival_radius_m":0}`)))
+	if rr.Code!=http.StatusBadRequest { t.Fatalf("threshold status=%d body=%s",rr.Code,rr.Body.String()) }
 }
