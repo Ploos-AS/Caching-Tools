@@ -165,11 +165,22 @@ function renderPaths(items) {
     const row = document.createElement('div');
     const text = document.createElement('pre');
     text.textContent = formatPathSummary(item);
+
+    const rename = document.createElement('button');
+    rename.type = 'button';
+    rename.textContent = 'Rename';
+    rename.addEventListener('click', () => renamePath(item.id, item.summary.name));
+
+    const exportLink = document.createElement('a');
+    exportLink.href = `/api/paths/${encodeURIComponent(item.id)}/export`;
+    exportLink.download = `${item.id}.gpx`;
+    exportLink.textContent = 'Export GPX';
+
     const del = document.createElement('button');
     del.type = 'button';
     del.textContent = 'Delete';
     del.addEventListener('click', () => deletePath(item.id));
-    row.append(text, del);
+    row.append(text, rename, exportLink, del);
     pathList.append(row);
   }
 }
@@ -179,6 +190,22 @@ async function loadPaths() {
     renderPaths(await requestJSON('/api/paths'));
   } catch (error) {
     pathList.textContent = `Error: ${error.message}`;
+  }
+}
+
+async function renamePath(id, currentName) {
+  const name = window.prompt('Track/route name', currentName);
+  if (name == null) return;
+  try {
+    await requestJSON(`/api/paths/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({name})
+    });
+    pathStatus.textContent = 'Track/route renamed.';
+    await loadPaths();
+  } catch (error) {
+    pathStatus.textContent = `Error: ${error.message}`;
   }
 }
 
