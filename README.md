@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.17 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
+M1.18 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -22,6 +22,9 @@ M1.17 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - latest puzzle-helper result can be saved as a workspace intermediate result
 - numeric puzzle-helper output can be assigned directly to an A–Z workspace variable
 - saved final waypoints automatically link back to the active mystery workspace
+- portable, versioned mystery-workspace JSON export/import
+- optional final-waypoint inclusion in exported mystery bundles
+- imported bundles create new local workspace/waypoint IDs without changing the persistent store format
 - create/edit/delete mystery workspace UI and CRUD API
 - A1Z26 / letter values and sums
 - Caesar / ROT shifts and ROT47
@@ -41,7 +44,7 @@ M1.17 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_17.md](docs/M1_17.md).
+See [docs/M1_18.md](docs/M1_18.md).
 
 ## Run with Go
 
@@ -90,7 +93,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.15: Morse, Bacon, ROT47, base conversion and phone/keypad puzzle helpers
 - M1.16: persistent mystery workspaces with notes, variables, formulas and final-waypoint linkage
 - M1.17: active-workspace integration with solver, puzzle results and automatic final-waypoint linking
-- Next: richer route/track editing or mystery workspace export/import
+- M1.18: portable mystery workspace JSON bundles with optional final-waypoint roundtrip
+- Next: richer route/track editing or workspace bundle evolution
 
 ## License
 
