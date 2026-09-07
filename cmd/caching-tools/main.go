@@ -81,6 +81,8 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/gpx/paths/import", func(w http.ResponseWriter, r *http.Request) { handlePathImport(w, r, paths) })
 	mux.HandleFunc("GET /api/paths", func(w http.ResponseWriter, _ *http.Request) { handlePathList(w, paths) })
 	mux.HandleFunc("GET /api/paths/{id}", func(w http.ResponseWriter, r *http.Request) { handlePathGet(w, r, paths) })
+	mux.HandleFunc("PUT /api/paths/{id}", func(w http.ResponseWriter, r *http.Request) { handlePathRename(w, r, paths) })
+	mux.HandleFunc("GET /api/paths/{id}/export", func(w http.ResponseWriter, r *http.Request) { handlePathExport(w, r, paths) })
 	mux.HandleFunc("DELETE /api/paths/{id}", func(w http.ResponseWriter, r *http.Request) { handlePathDelete(w, r, paths) })
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	return mux, nil
