@@ -1,12 +1,17 @@
+async function requestJSON(url, options = {}) {
+  const response = await fetch(url, options);
+  if (response.status === 204) return null;
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
+  return body;
+}
+
 async function postJSON(url, payload) {
-  const response = await fetch(url, {
+  return requestJSON(url, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify(payload)
   });
-  const body = await response.json();
-  if (!response.ok) throw new Error(body.error || `HTTP ${response.status}`);
-  return body;
 }
 
 function formatPoint(data) {
@@ -16,6 +21,114 @@ function formatPoint(data) {
     `DMS  ${data.lat.dms}, ${data.lon.dms}`
   ].join('\n');
 }
+
+const waypointForm = document.querySelector('#waypoint-form');
+const waypointList = document.querySelector('#waypoint-list');
+const waypointStatus = document.querySelector('#waypoint-status');
+const waypointCancel = document.querySelector('#waypoint-cancel');
+let waypointCache = [];
+
+function resetWaypointForm() {
+  waypointForm.elements['waypoint-id'].value = '';
+  waypointForm.elements['waypoint-name'].value = '';
+  waypointForm.elements['waypoint-type'].value = '';
+  waypointForm.elements['waypoint-lat'].value = '';
+  waypointForm.elements['waypoint-lon'].value = '';
+  waypointForm.elements['waypoint-comment'].value = '';
+  waypointCancel.hidden = true;
+  document.querySelector('#waypoint-save').textContent = 'Save waypoint';
+}
+
+function waypointPayload(form) {
+  return {
+    name: form.get('waypoint-name'),
+    latitude: form.get('waypoint-lat'),
+    longitude: form.get('waypoint-lon'),
+    type: form.get('waypoint-type'),
+    comment: form.get('waypoint-comment')
+  };
+}
+
+function renderWaypoints(items) {
+  waypointCache = items;
+  waypointList.replaceChildren();
+  if (items.length === 0) {
+    waypointList.textContent = 'No saved waypoints.';
+    return;
+  }
+  for (const item of items) {
+    const row = document.createElement('div');
+    const text = document.createElement('pre');
+    text.textContent = `${item.name}${item.type ? ` [${item.type}]` : ''}\n${item.point.lat.dmm}, ${item.point.lon.dmm}${item.comment ? `\n${item.comment}` : ''}`;
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.textContent = 'Edit';
+    edit.addEventListener('click', () => editWaypoint(item.id));
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = 'Delete';
+    del.addEventListener('click', () => deleteWaypoint(item.id));
+    row.append(text, edit, del);
+    waypointList.append(row);
+  }
+}
+
+async function loadWaypoints() {
+  try {
+    renderWaypoints(await requestJSON('/api/waypoints'));
+  } catch (error) {
+    waypointList.textContent = `Error: ${error.message}`;
+  }
+}
+
+function editWaypoint(id) {
+  const item = waypointCache.find((candidate) => candidate.id === id);
+  if (!item) return;
+  waypointForm.elements['waypoint-id'].value = item.id;
+  waypointForm.elements['waypoint-name'].value = item.name;
+  waypointForm.elements['waypoint-type'].value = item.type || '';
+  waypointForm.elements['waypoint-lat'].value = item.point.latitude;
+  waypointForm.elements['waypoint-lon'].value = item.point.longitude;
+  waypointForm.elements['waypoint-comment'].value = item.comment || '';
+  waypointCancel.hidden = false;
+  document.querySelector('#waypoint-save').textContent = 'Update waypoint';
+  waypointForm.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+async function deleteWaypoint(id) {
+  try {
+    await requestJSON(`/api/waypoints/${encodeURIComponent(id)}`, {method: 'DELETE'});
+    waypointStatus.textContent = 'Waypoint deleted.';
+    await loadWaypoints();
+  } catch (error) {
+    waypointStatus.textContent = `Error: ${error.message}`;
+  }
+}
+
+waypointForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const id = form.get('waypoint-id');
+  const payload = waypointPayload(form);
+  try {
+    if (id) {
+      await requestJSON(`/api/waypoints/${encodeURIComponent(id)}`, {
+        method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+      });
+      waypointStatus.textContent = 'Waypoint updated.';
+    } else {
+      await postJSON('/api/waypoints', payload);
+      waypointStatus.textContent = 'Waypoint saved.';
+    }
+    resetWaypointForm();
+    await loadWaypoints();
+  } catch (error) {
+    waypointStatus.textContent = `Error: ${error.message}`;
+  }
+});
+
+waypointCancel.addEventListener('click', resetWaypointForm);
+loadWaypoints();
 
 document.querySelector('#convert-form').addEventListener('submit', async (event) => {
   event.preventDefault();
