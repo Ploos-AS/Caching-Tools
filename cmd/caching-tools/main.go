@@ -58,7 +58,9 @@ func newHandler() (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	waypoints := newWaypointStore(getenv("CACHING_TOOLS_DATA_DIR", "/data"))
+	dataDir := getenv("CACHING_TOOLS_DATA_DIR", "/data")
+	waypoints := newWaypointStore(dataDir)
+	paths := newPathStore(dataDir)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -76,6 +78,10 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/gpx/waypoints/import", func(w http.ResponseWriter, r *http.Request) { handleGPXImport(w, r, waypoints) })
 	mux.HandleFunc("GET /api/gpx/waypoints/export", func(w http.ResponseWriter, _ *http.Request) { handleGPXExport(w, waypoints) })
 	mux.HandleFunc("POST /api/gpx/inspect", handleGPXInspect)
+	mux.HandleFunc("POST /api/gpx/paths/import", func(w http.ResponseWriter, r *http.Request) { handlePathImport(w, r, paths) })
+	mux.HandleFunc("GET /api/paths", func(w http.ResponseWriter, _ *http.Request) { handlePathList(w, paths) })
+	mux.HandleFunc("GET /api/paths/{id}", func(w http.ResponseWriter, r *http.Request) { handlePathGet(w, r, paths) })
+	mux.HandleFunc("DELETE /api/paths/{id}", func(w http.ResponseWriter, r *http.Request) { handlePathDelete(w, r, paths) })
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	return mux, nil
 }
