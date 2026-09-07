@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -96,5 +97,52 @@ func TestFromUTMAPI(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, `"dd":"N 59.913900"`) || !strings.Contains(body, `"dd":"E 10.752200"`) {
 		t.Fatalf("unexpected body: %s", body)
+	}
+}
+
+func TestWaypointCRUDAPI(t *testing.T) {
+	t.Setenv("CACHING_TOOLS_DATA_DIR", t.TempDir())
+	h, err := newHandler()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	create := httptest.NewRequest(http.MethodPost, "/api/waypoints", strings.NewReader(`{"name":"Trailhead","latitude":"N 59 54.834","longitude":"E 10 45.132","type":"parking","comment":"Start here"}`))
+	created := httptest.NewRecorder()
+	h.ServeHTTP(created, create)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create status=%d body=%s", created.Code, created.Body.String())
+	}
+	var item waypointResponse
+	if err := json.Unmarshal(created.Body.Bytes(), &item); err != nil {
+		t.Fatal(err)
+	}
+	if item.ID == "" || item.Name != "Trailhead" || item.Type != "parking" {
+		t.Fatalf("unexpected created waypoint: %+v", item)
+	}
+
+	list := httptest.NewRecorder()
+	h.ServeHTTP(list, httptest.NewRequest(http.MethodGet, "/api/waypoints", nil))
+	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"name":"Trailhead"`) {
+		t.Fatalf("list status=%d body=%s", list.Code, list.Body.String())
+	}
+
+	updateBody := `{"name":"Trailhead updated","latitude":"59.9139","longitude":"10.7522","type":"trailhead","comment":"Updated"}`
+	updated := httptest.NewRecorder()
+	h.ServeHTTP(updated, httptest.NewRequest(http.MethodPut, "/api/waypoints/"+item.ID, strings.NewReader(updateBody)))
+	if updated.Code != http.StatusOK || !strings.Contains(updated.Body.String(), `"name":"Trailhead updated"`) {
+		t.Fatalf("update status=%d body=%s", updated.Code, updated.Body.String())
+	}
+
+	deleted := httptest.NewRecorder()
+	h.ServeHTTP(deleted, httptest.NewRequest(http.MethodDelete, "/api/waypoints/"+item.ID, nil))
+	if deleted.Code != http.StatusNoContent {
+		t.Fatalf("delete status=%d body=%s", deleted.Code, deleted.Body.String())
+	}
+
+	empty := httptest.NewRecorder()
+	h.ServeHTTP(empty, httptest.NewRequest(http.MethodGet, "/api/waypoints", nil))
+	if empty.Code != http.StatusOK || strings.TrimSpace(empty.Body.String()) != "[]" {
+		t.Fatalf("post-delete list status=%d body=%s", empty.Code, empty.Body.String())
 	}
 }
