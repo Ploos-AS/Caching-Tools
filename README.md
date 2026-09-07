@@ -6,12 +6,15 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.10 provides a useful coordinate, grid, waypoint, GPX and interactive local map toolbox:
+M1.11 provides a useful coordinate, grid, waypoint, GPX and interactive local map toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - latitude/longitude and hemisphere validation
 - great-circle distance and initial bearing
 - waypoint projection from bearing and distance
+- bearing/bearing coordinate intersections
+- bearing/distance ray-circle intersections
+- circle/circle coordinate intersections
 - WGS84 → UTM conversion
 - UTM → WGS84 conversion
 - 1 m precision MGRS generation
@@ -35,7 +38,7 @@ M1.10 provides a useful coordinate, grid, waypoint, GPX and interactive local ma
 - interactive web UI and JSON/GPX APIs
 - Go unit and HTTP/static-asset tests
 
-Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_10.md](docs/M1_10.md).
+Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_11.md](docs/M1_11.md).
 
 ## Run with Go
 
@@ -97,7 +100,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.8: rename and GPX export for saved routes/tracks
 - M1.9: local SVG map for saved GPS data
 - M1.10: interactive map navigation, selection and list linkage
-- Next: coordinate intersection tools and richer route/track editing
+- M1.11: bearing/bearing, bearing/distance and circle/circle intersections
+- Next: save intersection results as waypoints and richer route/track editing
 
 ## License
 
