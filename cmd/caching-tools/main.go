@@ -61,6 +61,7 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/gpx/paths/import", func(w http.ResponseWriter, r *http.Request) { handlePathImport(w, r, paths) })
 	mux.HandleFunc("GET /api/paths", func(w http.ResponseWriter, _ *http.Request) { handlePathList(w, paths) })
 	mux.HandleFunc("GET /api/paths/{id}", func(w http.ResponseWriter, r *http.Request) { handlePathGet(w, r, paths) })
+	mux.HandleFunc("POST /api/paths/{id}/edit", func(w http.ResponseWriter, r *http.Request) { var req pathEditRequest; if err:=decodeJSON(r,&req);err!=nil{writeError(w,400,err);return}; item,err:=paths.edit(r.PathValue("id"),req); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("path not found"));return}; if err!=nil{writeError(w,400,err);return}; view,err:=pathView(item); if err!=nil{writeError(w,500,err);return}; writeJSON(w,200,view) })
 	mux.HandleFunc("PUT /api/paths/{id}", func(w http.ResponseWriter, r *http.Request) { handlePathRename(w, r, paths) })
 	mux.HandleFunc("GET /api/paths/{id}/export", func(w http.ResponseWriter, r *http.Request) { handlePathExport(w, r, paths) })
 	mux.HandleFunc("DELETE /api/paths/{id}", func(w http.ResponseWriter, r *http.Request) { handlePathDelete(w, r, paths) })
