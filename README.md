@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.14 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
+M1.15 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -18,7 +18,11 @@ M1.14 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - arithmetic expressions embedded in DD/DMM/DMS coordinate text
 - save solved finals as persistent `final` waypoints
 - A1Z26 / letter values and sums
-- Caesar / ROT shifts
+- Caesar / ROT shifts and ROT47
+- Morse encode/decode
+- Bacon cipher encode/decode
+- base conversion between bases 2 and 36
+- telephone/keypad letter values
 - digit sum and digital root/checksum
 - configurable monoalphabetic substitution
 - local waypoint create/list/edit/delete and persistence under `/data/waypoints.json`
@@ -31,7 +35,7 @@ M1.14 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_14.md](docs/M1_14.md).
+See [docs/M1_15.md](docs/M1_15.md).
 
 ## Run with Go
 
@@ -77,7 +81,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.12: save intersection solutions as persistent waypoints
 - M1.13: geocaching final-coordinate formula solver
 - M1.14: A1Z26, Caesar/ROT, digit checksum and substitution puzzle helpers
-- Next: richer puzzle helpers/workspaces or route/track editing
+- M1.15: Morse, Bacon, ROT47, base conversion and phone/keypad puzzle helpers
+- Next: persistent mystery workspace or richer route/track editing
 
 ## License
 
