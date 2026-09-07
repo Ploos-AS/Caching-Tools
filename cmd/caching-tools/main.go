@@ -50,6 +50,7 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("GET /api/mystery-workspaces/{id}", func(w http.ResponseWriter,r *http.Request){ item,err:=workspaces.get(r.PathValue("id")); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("workspace not found"));return}; if err!=nil{writeError(w,500,err);return}; writeJSON(w,200,item) })
 	mux.HandleFunc("PUT /api/mystery-workspaces/{id}", func(w http.ResponseWriter,r *http.Request){ var req mysteryWorkspaceRequest; if err:=decodeJSON(r,&req);err!=nil{writeError(w,400,err);return}; item,err:=workspaces.update(r.PathValue("id"),req); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("workspace not found"));return}; if err!=nil{writeError(w,400,err);return}; writeJSON(w,200,item) })
 	mux.HandleFunc("DELETE /api/mystery-workspaces/{id}", func(w http.ResponseWriter,r *http.Request){ err:=workspaces.delete(r.PathValue("id")); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("workspace not found"));return}; if err!=nil{writeError(w,500,err);return}; w.WriteHeader(204) })
+	registerMysteryBundleRoutes(mux, workspaces, waypoints)
 	mux.HandleFunc("GET /api/waypoints", func(w http.ResponseWriter, _ *http.Request) { handleWaypointList(w, waypoints) })
 	mux.HandleFunc("POST /api/waypoints", func(w http.ResponseWriter, r *http.Request) { handleWaypointCreate(w, r, waypoints) })
 	mux.HandleFunc("PUT /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointUpdate(w, r, waypoints) })
