@@ -15,6 +15,10 @@ button { border: 0; border-radius: 10px; background: #a8d58d; color: #10150f; pa
 .result { min-height: 74px; margin: 18px 0 0; padding: 14px; border-radius: 10px; background: #0c120b; color: #d8e6d2; overflow-x: auto; }
 .result > div { border-radius: 8px; padding: 8px; transition: background .15s ease, outline-color .15s ease; }
 .list-selected { background: rgba(168,213,141,.12); outline: 2px solid #a8d58d; }
+.intersection-solution { display: grid; gap: 10px; margin-bottom: 10px; border: 1px solid #263523; }
+.intersection-solution pre { margin: 0; white-space: pre-wrap; }
+.intersection-solution button { justify-self: start; padding: 9px 12px; }
+.intersection-save-status { min-height: 1.3em; color: #b8dda4; }
 .map-controls { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .map-controls button { padding: 9px 12px; }
 .map-frame { margin-top: 18px; border: 1px solid #52714a; border-radius: 12px; overflow: hidden; background: #0c120b; aspect-ratio: 16 / 9; touch-action: none; }
