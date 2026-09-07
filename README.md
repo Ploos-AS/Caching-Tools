@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.12 provides a useful coordinate, grid, waypoint, GPX and interactive local map toolbox:
+M1.13 provides a useful coordinate, grid, waypoint, GPX, map and geocaching formula toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - latitude/longitude and hemisphere validation
@@ -16,8 +16,11 @@ M1.12 provides a useful coordinate, grid, waypoint, GPX and interactive local ma
 - bearing/distance ray-circle intersections
 - circle/circle coordinate intersections
 - direct save of intersection solutions as local waypoints
-- automatic `intersection` waypoint type plus source metadata
-- immediate waypoint-list and map refresh after saving a solution
+- final-coordinate formula solver with variables A–Z
+- arithmetic expressions embedded in DD/DMM/DMS coordinate text
+- `+ - * / %`, parentheses and unary operators in formulas
+- live final-coordinate evaluation in the web UI
+- save solved finals as persistent `final` waypoints
 - WGS84 → UTM conversion
 - UTM → WGS84 conversion
 - 1 m precision MGRS generation
@@ -41,7 +44,7 @@ M1.12 provides a useful coordinate, grid, waypoint, GPX and interactive local ma
 - interactive web UI and JSON/GPX APIs
 - Go unit and HTTP/static-asset tests
 
-Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_12.md](docs/M1_12.md).
+Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_13.md](docs/M1_13.md).
 
 ## Run with Go
 
@@ -105,7 +108,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.10: interactive map navigation, selection and list linkage
 - M1.11: bearing/bearing, bearing/distance and circle/circle intersections
 - M1.12: save intersection solutions as persistent waypoints
-- Next: richer route/track editing or geocaching puzzle/final-coordinate workflows
+- M1.13: geocaching final-coordinate formula solver
+- Next: provider-neutral mystery/puzzle helper tools
 
 ## License
 
