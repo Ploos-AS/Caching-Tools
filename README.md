@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.18 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
+M1.19 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -39,12 +39,16 @@ M1.18 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - GPX route/track inspection and persistent paths under `/data/paths.json`
 - segment-aware distance, elevation, duration and speed statistics
 - rename and GPX export for saved routes/tracks
+- local route point deletion and reordering
+- local track point deletion/reordering within segments
+- split and merge track segments with persistent geometry updates
+- existing elevation/timestamp point data preserved during geometry editing
 - interactive local SVG map with pan, zoom, selection and list linkage
 - no external map tiles, CDN, provider account, API key or network dependency for core tools
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_18.md](docs/M1_18.md).
+See [docs/M1_19.md](docs/M1_19.md).
 
 ## Run with Go
 
@@ -94,7 +98,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.16: persistent mystery workspaces with notes, variables, formulas and final-waypoint linkage
 - M1.17: active-workspace integration with solver, puzzle results and automatic final-waypoint linking
 - M1.18: portable mystery workspace JSON bundles with optional final-waypoint roundtrip
-- Next: richer route/track editing or workspace bundle evolution
+- M1.19: persistent local route/track geometry editing
+- Next: richer visual path editing or datum/CRS conversion
 
 ## License
 
