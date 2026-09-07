@@ -3,14 +3,14 @@ fieldSection.className = 'tool';
 fieldSection.id = 'field-navigation';
 fieldSection.innerHTML = `
   <h2>Field navigation</h2>
-  <p>Navigate from your current position to a saved waypoint or find the nearest point on a saved route/track. All calculations stay local.</p>
+  <p>Navigate from your current position to a saved waypoint or follow a saved route/track with nearest-path and progress guidance. All calculations stay local.</p>
   <form id="field-navigation-form" class="form-grid nav-grid">
     <label>Current latitude<input name="latitude" value="59.9139" required></label>
     <label>Current longitude<input name="longitude" value="10.7522" required></label>
     <label>Target type<select name="target-type"><option value="waypoint">Waypoint</option><option value="path">Route / track</option></select></label>
     <label>Target<select name="target-id"></select></label>
     <button type="button" id="field-use-location">Use browser location</button>
-    <button type="submit">Go to / nearest point</button>
+    <button type="submit">Go to / route guidance</button>
   </form>
   <pre id="field-navigation-result" class="result">Choose a saved target.</pre>`;
 
@@ -50,6 +50,17 @@ function formatFieldNavigation(data) {
   ];
   if (data.cross_track_m != null) lines.push(`Cross-track / nearest-path distance: ${data.cross_track_m.toFixed(1)} m`);
   if (data.nearest_path) lines.push(`Nearest path location: segment ${data.nearest_path.segment + 1}, edge ${data.nearest_path.edge + 1}`);
+  if (data.progress) {
+    lines.push(
+      '',
+      `Progress: ${data.progress.progress_percent.toFixed(1)}%`,
+      `Along path: ${(data.progress.along_m / 1000).toFixed(3)} km of ${(data.progress.total_m / 1000).toFixed(3)} km`,
+      `Remaining along path: ${(data.progress.remaining_m / 1000).toFixed(3)} km`,
+      `Next point: ${data.progress.next_point.lat.dmm}, ${data.progress.next_point.lon.dmm}`,
+      `Distance to next point from nearest path position: ${data.progress.next_point_distance_m.toFixed(1)} m`,
+      `Forward bearing: ${data.progress.forward_bearing_deg.toFixed(1)}°`
+    );
+  }
   return lines.join('\n');
 }
 
@@ -87,4 +98,4 @@ document.addEventListener('caching-tools:map-select', event => {
 });
 
 loadFieldTargets().catch(error => { fieldResult.textContent = `Error: ${error.message}`; });
-const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.22';
+const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.23';
