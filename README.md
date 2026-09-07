@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.21 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzzle toolbox:
+M1.22 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -15,6 +15,10 @@ M1.21 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - WGS84 (`EPSG:4326`) ↔ ETRS89 (`EPSG:4258`) geographic conversion with explicit approximation metadata
 - ETRS89 / UTM zones 28N–38N (`EPSG:25828`–`EPSG:25838`) using GRS80
 - local datum/CRS converter UI and `POST /api/coordinates/crs`
+- field navigation to saved waypoints with distance and bearing
+- nearest-point and cross-track distance to saved routes/tracks
+- optional browser geolocation as local field-navigation input
+- map selection can become the field-navigation target
 - bearing/bearing, bearing/distance and circle/circle intersections
 - direct save of intersection solutions as local waypoints
 - final-coordinate formula solver with variables A–Z
@@ -54,7 +58,7 @@ M1.21 provides a useful coordinate, grid, waypoint, GPX, map and geocaching puzz
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_21.md](docs/M1_21.md).
+See [docs/M1_22.md](docs/M1_22.md).
 
 ## Run with Go
 
@@ -107,7 +111,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.19: persistent local route/track geometry editing
 - M1.20: visual route/track editing directly on the local SVG map
 - M1.21: WGS84/ETRS89 datum handling and explicit ETRS89 / UTM CRS conversion
-- Next: richer field/navigation workflows or additional well-defined CRS families
+- M1.22: local field navigation to waypoints and nearest/cross-track navigation for saved paths
+- Next: field bearing guidance / route-progress metrics or additional well-defined CRS families
 
 ## License
 
