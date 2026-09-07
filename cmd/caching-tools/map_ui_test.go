@@ -29,7 +29,7 @@ func TestLocalMapAssetsAreServed(t *testing.T) {
 	if asset.Code != http.StatusOK {
 		t.Fatalf("map.js status=%d", asset.Code)
 	}
-	for _, want := range []string{"refreshLocalMap", "/api/waypoints", "/api/paths", "createElementNS"} {
+	for _, want := range []string{"refreshLocalMap", "/api/waypoints", "/api/paths", "createElementNS", "segment.Points", "point.Latitude", "point.Longitude"} {
 		if !strings.Contains(asset.Body.String(), want) {
 			t.Fatalf("missing %q from map.js", want)
 		}
