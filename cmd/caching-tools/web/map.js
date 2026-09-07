@@ -9,6 +9,9 @@ let fullView = {...currentView};
 let dragStart = null;
 let selected = null;
 let objectBounds = new Map();
+let currentProject = null;
+let currentInverse = null;
+let currentPaths = [];
 
 function svgElement(name, attrs = {}) {
   const el = document.createElementNS(mapNS, name);
@@ -44,10 +47,16 @@ function mapProjection(points, width, height) {
   const padLat = (maxLat - minLat) * 0.08;
   const padLon = (maxLon - minLon) * 0.08;
   minLat -= padLat; maxLat += padLat; minLon -= padLon; maxLon += padLon;
-  return (lat, lon) => ({
-    x: ((lon - minLon) / (maxLon - minLon)) * width,
-    y: height - ((lat - minLat) / (maxLat - minLat)) * height
-  });
+  return {
+    project: (lat, lon) => ({
+      x: ((lon - minLon) / (maxLon - minLon)) * width,
+      y: height - ((lat - minLat) / (maxLat - minLat)) * height
+    }),
+    inverse: (x, y) => ({
+      latitude: minLat + ((height - y) / height) * (maxLat - minLat),
+      longitude: minLon + (x / width) * (maxLon - minLon)
+    })
+  };
 }
 
 function setView(view) {
@@ -104,17 +113,23 @@ async function fetchMapData() {
 async function refreshLocalMap() {
   try {
     const {waypoints, paths} = await fetchMapData();
+    currentPaths = paths;
     const all = collectCoordinates(waypoints, paths);
     mapSvg.replaceChildren();
     objectBounds = new Map();
     selected = null;
     mapSelection.textContent = 'Nothing selected.';
     if (all.length === 0) {
+      currentProject = null;
+      currentInverse = null;
       mapStatus.textContent = 'No saved coordinates to display.';
+      document.dispatchEvent(new CustomEvent('caching-tools:map-rendered', {detail:{paths, project:null, inverse:null}}));
       return;
     }
 
-    const project = mapProjection(all, baseWidth, baseHeight);
+    const projection = mapProjection(all, baseWidth, baseHeight);
+    currentProject = projection.project;
+    currentInverse = projection.inverse;
     fullView = {x: 0, y: 0, width: baseWidth, height: baseHeight};
     setView(fullView);
 
@@ -128,7 +143,7 @@ async function refreshLocalMap() {
       for (const segment of pathPoints(item)) {
         const valid = segment.filter((p) => Number.isFinite(pointLat(p)) && Number.isFinite(pointLon(p)));
         if (!valid.length) continue;
-        const points = valid.map((p) => project(pointLat(p), pointLon(p)));
+        const points = valid.map((p) => currentProject(pointLat(p), pointLon(p)));
         projected.push(...points);
         const coords = points.map((xy) => `${xy.x.toFixed(2)},${xy.y.toFixed(2)}`).join(' ');
         const polyline = svgElement('polyline', {points: coords, class: `map-path map-${item.kind} map-interactive`, tabindex: 0, 'data-map-kind': item.kind, 'data-map-id': item.id});
@@ -144,7 +159,7 @@ async function refreshLocalMap() {
     }
 
     for (const item of waypoints) {
-      const xy = project(item.point.latitude, item.point.longitude);
+      const xy = currentProject(item.point.latitude, item.point.longitude);
       const marker = svgElement('circle', {cx: xy.x, cy: xy.y, r: 6, class: 'map-waypoint map-interactive', tabindex: 0, 'data-map-kind': 'waypoint', 'data-map-id': item.id});
       const title = svgElement('title');
       title.textContent = item.name;
@@ -157,9 +172,18 @@ async function refreshLocalMap() {
     }
 
     mapStatus.textContent = `${waypoints.length} waypoint${waypoints.length === 1 ? '' : 's'}, ${paths.length} saved track/route object${paths.length === 1 ? '' : 's'}. Drag to pan, use wheel or buttons to zoom.`;
+    document.dispatchEvent(new CustomEvent('caching-tools:map-rendered', {detail:{paths, project:currentProject, inverse:currentInverse}}));
   } catch (error) {
     mapStatus.textContent = `Error: ${error.message}`;
   }
+}
+
+function clientToMap(clientX, clientY) {
+  const rect = mapSvg.getBoundingClientRect();
+  return {
+    x: currentView.x + (clientX - rect.left) * currentView.width / rect.width,
+    y: currentView.y + (clientY - rect.top) * currentView.height / rect.height
+  };
 }
 
 mapSvg.addEventListener('wheel', (event) => {
@@ -168,6 +192,7 @@ mapSvg.addEventListener('wheel', (event) => {
 }, {passive: false});
 
 mapSvg.addEventListener('pointerdown', (event) => {
+  if (event.defaultPrevented) return;
   mapSvg.setPointerCapture(event.pointerId);
   dragStart = {x: event.clientX, y: event.clientY, view: {...currentView}};
 });
@@ -182,6 +207,16 @@ mapSvg.addEventListener('pointerup', () => { dragStart = null; });
 mapSvg.addEventListener('pointercancel', () => { dragStart = null; });
 
 window.refreshLocalMap = refreshLocalMap;
+window.cachingToolsMap = {
+  svg: mapSvg,
+  get paths() { return currentPaths; },
+  get project() { return currentProject; },
+  get inverse() { return currentInverse; },
+  clientToMap,
+  pointLat,
+  pointLon,
+  pathPoints
+};
 document.querySelector('#map-refresh').addEventListener('click', refreshLocalMap);
 document.querySelector('#map-zoom-in').addEventListener('click', () => zoom(0.8));
 document.querySelector('#map-zoom-out').addEventListener('click', () => zoom(1.25));
