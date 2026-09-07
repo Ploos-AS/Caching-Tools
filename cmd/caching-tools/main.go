@@ -68,6 +68,7 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/coordinates/intersection/bearing-bearing", handleBearingIntersection)
 	mux.HandleFunc("POST /api/coordinates/intersection/bearing-distance", handleBearingDistanceIntersection)
 	mux.HandleFunc("POST /api/coordinates/intersection/circle-circle", handleCircleIntersection)
+	mux.HandleFunc("POST /api/coordinates/final", handleFinalCoordinate)
 	mux.HandleFunc("GET /api/waypoints", func(w http.ResponseWriter, _ *http.Request) { handleWaypointList(w, waypoints) })
 	mux.HandleFunc("POST /api/waypoints", func(w http.ResponseWriter, r *http.Request) { handleWaypointCreate(w, r, waypoints) })
 	mux.HandleFunc("PUT /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointUpdate(w, r, waypoints) })
@@ -134,6 +135,14 @@ func handleFromUTM(w http.ResponseWriter, r *http.Request) {
 	utm, err := latLonToUTM(lat, lon)
 	if err != nil { writeError(w, http.StatusBadRequest, err); return }
 	writeJSON(w, http.StatusOK, gridResponse{WGS84: point(lat, lon), UTM: utm})
+}
+
+func handleFinalCoordinate(w http.ResponseWriter, r *http.Request) {
+	var req finalCoordinateRequest
+	if err := decodeJSON(r, &req); err != nil { writeError(w, http.StatusBadRequest, err); return }
+	result, err := solveFinalCoordinate(req)
+	if err != nil { writeError(w, http.StatusBadRequest, err); return }
+	writeJSON(w, http.StatusOK, result)
 }
 
 func handleWaypointList(w http.ResponseWriter, store *waypointStore) {
