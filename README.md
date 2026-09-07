@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.8 provides a useful coordinate, grid, waypoint and GPX toolbox:
+M1.9 provides a useful coordinate, grid, waypoint, GPX and local map toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - latitude/longitude and hemisphere validation
@@ -24,15 +24,14 @@ M1.8 provides a useful coordinate, grid, waypoint and GPX toolbox:
 - elevation gain/loss, duration and speed statistics
 - persistent routes and tracks under `/data/paths.json`
 - full route point and track segment preservation
-- preserved elevation and timestamps for saved tracks
-- list/get/delete APIs for saved routes and tracks
-- rename saved routes and tracks
-- GPX 1.1 export of individual saved routes/tracks
-- segment, elevation and timestamp preservation during path export
+- rename and GPX export for saved routes/tracks
+- local SVG map for saved waypoints, routes and tracks
+- automatic map bounds and preserved track segment gaps
+- no external map tiles, CDN, map API key or provider dependency
 - interactive web UI and JSON/GPX APIs
-- Go unit and HTTP tests
+- Go unit and HTTP/static-asset tests
 
-Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_8.md](docs/M1_8.md).
+Core tools work locally without a Geocaching.com account, API key or network provider. See [docs/M1_9.md](docs/M1_9.md).
 
 ## Run with Go
 
@@ -70,6 +69,7 @@ Caching Tools is intended to grow into a broad GPS and geocaching toolbox with:
 - GPX import, inspection, editing and export
 - track and route analysis
 - elevation, speed and distance statistics
+- offline/local map visualization with optional configured basemaps
 - mystery-cache cipher and number tools
 - formula-based final coordinate solving
 - local cache and waypoint database
@@ -91,7 +91,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.6: elevation/time-aware track statistics
 - M1.7: persistent route and track objects
 - M1.8: rename and GPX export for saved routes/tracks
-- Next: map visualization for waypoints, routes and tracks
+- M1.9: local SVG map for saved GPS data
+- Next: map interaction and richer route/track editing
 
 ## License
 
