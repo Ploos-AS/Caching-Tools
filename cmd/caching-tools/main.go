@@ -58,6 +58,7 @@ func newHandler() (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	waypoints := newWaypointStore(getenv("CACHING_TOOLS_DATA_DIR", "/data"))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -68,6 +69,10 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/coordinates/project", handleProjection)
 	mux.HandleFunc("POST /api/coordinates/grid", handleGrid)
 	mux.HandleFunc("POST /api/coordinates/from-utm", handleFromUTM)
+	mux.HandleFunc("GET /api/waypoints", func(w http.ResponseWriter, _ *http.Request) { handleWaypointList(w, waypoints) })
+	mux.HandleFunc("POST /api/waypoints", func(w http.ResponseWriter, r *http.Request) { handleWaypointCreate(w, r, waypoints) })
+	mux.HandleFunc("PUT /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointUpdate(w, r, waypoints) })
+	mux.HandleFunc("DELETE /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointDelete(w, r, waypoints) })
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	return mux, nil
 }
@@ -172,6 +177,62 @@ func handleFromUTM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, gridResponse{WGS84: point(lat, lon), UTM: utm})
+}
+
+func handleWaypointList(w http.ResponseWriter, store *waypointStore) {
+	items, err := store.list()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	views := make([]waypointResponse, 0, len(items))
+	for _, item := range items {
+		views = append(views, waypointView(item))
+	}
+	writeJSON(w, http.StatusOK, views)
+}
+
+func handleWaypointCreate(w http.ResponseWriter, r *http.Request, store *waypointStore) {
+	var req waypointRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	item, err := store.create(req)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, waypointView(item))
+}
+
+func handleWaypointUpdate(w http.ResponseWriter, r *http.Request, store *waypointStore) {
+	var req waypointRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	item, err := store.update(r.PathValue("id"), req)
+	if errors.Is(err, os.ErrNotExist) {
+		writeError(w, http.StatusNotFound, errors.New("waypoint not found"))
+		return
+	}
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, waypointView(item))
+}
+
+func handleWaypointDelete(w http.ResponseWriter, r *http.Request, store *waypointStore) {
+	if err := store.delete(r.PathValue("id")); errors.Is(err, os.ErrNotExist) {
+		writeError(w, http.StatusNotFound, errors.New("waypoint not found"))
+		return
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func parsePoint(req coordinateRequest) (float64, float64, error) {
