@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.28 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.29 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -31,12 +31,18 @@ M1.28 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - accepted/rejected breadcrumb quality counters
 - live session statistics for travelled distance, duration, average speed and maximum accepted segment speed
 - defensive speed handling ignores invalid/non-positive time deltas and >360 km/h maximum-speed outliers
+- pause/resume breadcrumb recording while live navigation continues
+- resume starts a new recording segment so statistics and GPX do not bridge pause gaps
+- manual in-memory field markers with `cache`, `trailhead`, `note` and custom marker types
+- optional marker notes and current-position capture even while breadcrumb recording is paused
 - explicit browser-side export of the current breadcrumb session as a GPX 1.1 track
+- manual markers export as standard GPX 1.1 waypoints
+- paused/resumed recording exports as separate GPX `<trkseg>` elements
 - optional local GPX-export simplification with configurable tolerance, default 5 m
-- simplification operates on an export copy and leaves accepted session breadcrumbs unchanged
-- timestamped `caching-tools-session-*.gpx` downloads with one track segment and timestamped track points
+- simplification operates independently inside recording segments and leaves manual markers untouched
+- timestamped `caching-tools-session-*.gpx` downloads
 - breadcrumb export does not persist the session under `/data`
-- breadcrumbs and session statistics are cleared on new sessions or page reload unless explicitly exported first
+- breadcrumbs, markers and session statistics are cleared on new sessions or page reload unless explicitly exported first
 - track progress respects segment boundaries without bridging segment gaps
 - optional one-shot browser geolocation as local field-navigation input
 - map selection can become the field-navigation target
@@ -79,7 +85,7 @@ M1.28 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_28.md](docs/M1_28.md).
+See [docs/M1_29.md](docs/M1_29.md).
 
 ## Run with Go
 
@@ -139,7 +145,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.26: explicit GPX 1.1 export of the current in-memory live-navigation breadcrumb session
 - M1.27: live-session distance, duration, average-speed and maximum-speed statistics
 - M1.28: breadcrumb minimum-distance and accuracy filters plus optional GPX-export simplification
-- Next: field-session pause/resume and manual breadcrumb markers, or additional well-defined CRS families
+- M1.29: pause/resume breadcrumb recording, segment-aware session statistics/GPX and manual field markers
+- Next: marker promotion to persistent local waypoints / field notes, or additional well-defined CRS families
 
 ## License
 
