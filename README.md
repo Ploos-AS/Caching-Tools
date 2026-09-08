@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.33 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.34 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -51,6 +51,10 @@ M1.33 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - imported field notes receive new local IDs and fresh create/update timestamps
 - field-note restore appends atomically and never partially imports an invalid bundle
 - existing notes remain unchanged during backup restore
+- local logbook dashboard with total notes, last-7-day and last-30-day activity
+- field-note status/type distributions and six-month UTC activity summary
+- most-used linked waypoint and mystery-workspace summaries with local name resolution
+- dashboard aggregation is browser-local and read-only with no external telemetry
 - explicit browser-side export of the current breadcrumb session as a GPX 1.1 track
 - manual markers export as standard GPX 1.1 waypoints
 - paused/resumed recording exports as separate GPX `<trkseg>` elements
@@ -101,7 +105,7 @@ M1.33 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_33.md](docs/M1_33.md).
+See [docs/M1_34.md](docs/M1_34.md).
 
 ## Run with Go
 
@@ -166,7 +170,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.31: persistent local field notes/logbook with optional waypoint and mystery-workspace links
 - M1.32: browser-local field-note search/filter plus explicit filtered JSON/CSV export
 - M1.33: versioned field-note JSON backup import with new local IDs and atomic append restore
-- Next: richer logbook summaries, field-note attachment support, or additional well-defined CRS families
+- M1.34: local read-only logbook dashboard with activity, status/type and linked-target summaries
+- Next: field-note attachment support, richer map/logbook integration, or additional well-defined CRS families
 
 ## License
 
