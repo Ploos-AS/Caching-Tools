@@ -14,12 +14,26 @@ document.addEventListener('caching-tools:map-select', (event) => {
   selected.scrollIntoView({behavior: 'smooth', block: 'center'});
 });
 
+function loadFieldSession() {
+  if (document.querySelector('script[data-field-session]')) return;
+  const session = document.createElement('script');
+  session.src = '/field-session.js';
+  session.dataset.fieldSession = 'true';
+  document.body.append(session);
+}
+
 window.addEventListener('load', () => {
-  if (!document.querySelector('script[data-field-quality]')) {
+  const existingQuality = document.querySelector('script[data-field-quality]');
+  if (!existingQuality) {
     const quality = document.createElement('script');
     quality.src = '/field-quality.js';
     quality.dataset.fieldQuality = 'true';
+    quality.addEventListener('load', loadFieldSession, {once:true});
     document.body.append(quality);
+  } else if (existingQuality.dataset.loaded === 'true') {
+    loadFieldSession();
+  } else {
+    existingQuality.addEventListener('load', loadFieldSession, {once:true});
   }
 
   if (!document.querySelector('script[data-map-editor]')) {
