@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.35 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.36 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -60,6 +60,13 @@ M1.35 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - one-click creation of a new field note with the selected map waypoint preselected
 - route/track map selections do not disturb the current waypoint logbook context
 - map waypoint logbook refreshes after field-note CRUD/import changes
+- local field-note attachments stored under `/data/field-note-attachments/<note-id>/`
+- attachment upload/list/download/delete API for existing field notes
+- 10 MiB per-file attachment limit with server-side byte sniffing and explicit content-type allowlist
+- attachment filenames are sanitized and generated `att-*` IDs are path-traversal checked before filesystem access
+- attachment downloads force `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`
+- deleting a field note also removes its local attachment directory
+- attachment UI supports field-note selection, upload, download, delete and refresh
 - explicit browser-side export of the current breadcrumb session as a GPX 1.1 track
 - manual markers export as standard GPX 1.1 waypoints
 - paused/resumed recording exports as separate GPX `<trkseg>` elements
@@ -110,7 +117,7 @@ M1.35 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_35.md](docs/M1_35.md).
+See [docs/M1_36.md](docs/M1_36.md).
 
 ## Run with Go
 
@@ -130,13 +137,13 @@ docker compose up --build
 
 Then open <http://localhost:8080>.
 
-The compose volume mounted at `/data` keeps saved waypoints, routes, tracks, field notes and mystery workspaces across container recreation.
+The compose volume mounted at `/data` keeps saved waypoints, routes, tracks, field notes, field-note attachments and mystery workspaces across container recreation.
 
 ## Product direction
 
 Caching Tools is intended to grow into a broad GPS and geocaching toolbox with coordinate tools, waypoint management, GPX workflows, track/route analysis, offline/local visualization, mystery-cache helpers, final-coordinate solving, local notes/logbook data, datum conversion and optional provider integrations.
 
-Core functionality should remain useful offline and without API keys. Private cache, waypoint, track and field-note data should remain local by default.
+Core functionality should remain useful offline and without API keys. Private cache, waypoint, track, field-note and attachment data should remain local by default.
 
 ## Milestones
 
@@ -177,7 +184,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.33: versioned field-note JSON backup import with new local IDs and atomic append restore
 - M1.34: local read-only logbook dashboard with activity, status/type and linked-target summaries
 - M1.35: map waypoint logbook integration and prefilled field-note creation from map selection
-- Next: field-note attachment support, richer map overlays, or additional well-defined CRS families
+- M1.36: local field-note attachments with size/type validation, download hardening and cascade cleanup
+- Next: attachment-aware backup bundles, richer map overlays, or additional well-defined CRS families
 
 ## License
 
