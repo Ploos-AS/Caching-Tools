@@ -13,7 +13,7 @@ fieldNoteAttachmentsSection.innerHTML = `
   <p id="field-note-attachment-status" aria-live="polite"></p>
   <div id="field-note-attachment-list" class="result">Select a field note.</div>`;
 
-const mapLogbookTool = document.querySelector('#map-waypoint-logbook');
+const mapLogbookTool = document.querySelector('#map-logbook');
 const fieldNoteDashboardTool = document.querySelector('#field-note-dashboard');
 const fieldNotesToolForAttachments = document.querySelector('#field-notes');
 if (mapLogbookTool) mapLogbookTool.insertAdjacentElement('afterend', fieldNoteAttachmentsSection);
