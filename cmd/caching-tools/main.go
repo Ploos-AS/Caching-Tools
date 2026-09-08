@@ -32,7 +32,7 @@ func main() {
 func newHandler() (http.Handler, error) {
 	staticFS, err := fs.Sub(webFS, "web"); if err != nil { return nil, err }
 	dataDir := getenv("CACHING_TOOLS_DATA_DIR", "/data")
-	waypoints := newWaypointStore(dataDir); paths := newPathStore(dataDir); workspaces := newMysteryWorkspaceStore(dataDir); fieldNotes := newFieldNoteStore(dataDir)
+	waypoints := newWaypointStore(dataDir); paths := newPathStore(dataDir); workspaces := newMysteryWorkspaceStore(dataDir); fieldNotes := newFieldNoteStore(dataDir); fieldNoteAttachments := newFieldNoteAttachmentStore(dataDir)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { writeJSON(w, http.StatusOK, healthResponse{Status:"ok", Time:time.Now().UTC().Format(time.RFC3339)}) })
 	mux.HandleFunc("POST /api/coordinates/convert", handleConvert)
@@ -58,7 +58,8 @@ func newHandler() (http.Handler, error) {
 	mux.HandleFunc("POST /api/field-notes/import", func(w http.ResponseWriter,r *http.Request){ var bundle fieldNoteBundle; if err:=decodeJSON(r,&bundle);err!=nil{writeError(w,400,err);return}; items,err:=importFieldNoteBundle(bundle,fieldNotes); if err!=nil{writeError(w,400,err);return}; writeJSON(w,201,fieldNoteImportResult{Imported:len(items),Notes:items}) })
 	mux.HandleFunc("GET /api/field-notes/{id}", func(w http.ResponseWriter,r *http.Request){ item,err:=fieldNotes.get(r.PathValue("id")); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("field note not found"));return}; if err!=nil{writeError(w,500,err);return}; writeJSON(w,200,item) })
 	mux.HandleFunc("PUT /api/field-notes/{id}", func(w http.ResponseWriter,r *http.Request){ var req fieldNoteRequest; if err:=decodeJSON(r,&req);err!=nil{writeError(w,400,err);return}; item,err:=fieldNotes.update(r.PathValue("id"),req); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("field note not found"));return}; if err!=nil{writeError(w,400,err);return}; writeJSON(w,200,item) })
-	mux.HandleFunc("DELETE /api/field-notes/{id}", func(w http.ResponseWriter,r *http.Request){ err:=fieldNotes.delete(r.PathValue("id")); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("field note not found"));return}; if err!=nil{writeError(w,500,err);return}; w.WriteHeader(204) })
+	mux.HandleFunc("DELETE /api/field-notes/{id}", func(w http.ResponseWriter,r *http.Request){ id:=r.PathValue("id"); err:=fieldNotes.delete(id); if errors.Is(err,os.ErrNotExist){writeError(w,404,errors.New("field note not found"));return}; if err!=nil{writeError(w,500,err);return}; if err:=fieldNoteAttachments.deleteForNote(id);err!=nil{writeError(w,500,err);return}; w.WriteHeader(204) })
+	registerFieldNoteAttachmentRoutes(mux, fieldNotes, fieldNoteAttachments)
 	mux.HandleFunc("GET /api/waypoints", func(w http.ResponseWriter, _ *http.Request) { handleWaypointList(w, waypoints) })
 	mux.HandleFunc("POST /api/waypoints", func(w http.ResponseWriter, r *http.Request) { handleWaypointCreate(w, r, waypoints) })
 	mux.HandleFunc("PUT /api/waypoints/{id}", func(w http.ResponseWriter, r *http.Request) { handleWaypointUpdate(w, r, waypoints) })
