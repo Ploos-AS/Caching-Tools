@@ -11,7 +11,8 @@ fieldNoteAttachmentsSection.innerHTML = `
     <button type="button" id="field-note-attachment-refresh">Refresh attachments</button>
   </div>
   <p id="field-note-attachment-status" aria-live="polite"></p>
-  <div id="field-note-attachment-list" class="result">Select a field note.</div>`;
+  <div id="field-note-attachment-list" class="result">Select a field note.</div>
+  <div id="field-note-attachment-preview" class="result" hidden></div>`;
 
 const mapLogbookTool = document.querySelector('#map-logbook');
 const fieldNoteDashboardTool = document.querySelector('#field-note-dashboard');
@@ -25,12 +26,47 @@ const attachmentNoteSelect = fieldNoteAttachmentsSection.querySelector('#field-n
 const attachmentFileInput = fieldNoteAttachmentsSection.querySelector('#field-note-attachment-file');
 const attachmentStatus = fieldNoteAttachmentsSection.querySelector('#field-note-attachment-status');
 const attachmentList = fieldNoteAttachmentsSection.querySelector('#field-note-attachment-list');
+const attachmentPreview = fieldNoteAttachmentsSection.querySelector('#field-note-attachment-preview');
 
 function attachmentSize(size) {
   const bytes = Number(size || 0);
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+}
+
+function clearAttachmentPreview() {
+  attachmentPreview.replaceChildren();
+  attachmentPreview.hidden = true;
+}
+
+async function showAttachmentPreview(noteID, item) {
+  clearAttachmentPreview();
+  const url = `/api/field-notes/${encodeURIComponent(noteID)}/attachments/${encodeURIComponent(item.id)}/preview`;
+  if (item.preview_kind === 'image') {
+    const image = document.createElement('img');
+    image.src = url;
+    image.alt = `Preview of ${item.filename}`;
+    image.style.maxWidth = '100%';
+    image.style.maxHeight = '480px';
+    attachmentPreview.append(image);
+  } else if (item.preview_kind === 'pdf') {
+    const frame = document.createElement('iframe');
+    frame.src = url;
+    frame.title = `Preview of ${item.filename}`;
+    frame.style.width = '100%';
+    frame.style.height = '480px';
+    attachmentPreview.append(frame);
+  } else if (item.preview_kind === 'text') {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const pre = document.createElement('pre');
+    pre.textContent = await response.text();
+    attachmentPreview.append(pre);
+  } else {
+    attachmentPreview.textContent = 'Preview is not available for this attachment type.';
+  }
+  attachmentPreview.hidden = false;
 }
 
 async function refreshAttachmentNoteOptions() {
@@ -47,6 +83,7 @@ async function refreshAttachmentNoteOptions() {
 async function loadFieldNoteAttachments() {
   const noteID = attachmentNoteSelect.value;
   attachmentList.replaceChildren();
+  clearAttachmentPreview();
   if (!noteID) {
     attachmentList.textContent = 'Select a field note.';
     return;
@@ -60,10 +97,27 @@ async function loadFieldNoteAttachments() {
     for (const item of items) {
       const row = document.createElement('div');
       const text = document.createElement('pre');
-      text.textContent = `${item.filename}\n${item.content_type} · ${attachmentSize(item.size)}\n${item.created_at}`;
+      const details = [
+        item.filename,
+        `${item.content_type} · ${attachmentSize(item.size)}`,
+        `SHA-256: ${item.sha256 || 'unavailable'}`,
+        item.text_lines ? `Text lines: ${item.text_lines}` : '',
+        item.pdf_version ? `PDF version: ${item.pdf_version}` : '',
+        `Preview: ${item.preview_kind || 'none'}`,
+        item.created_at
+      ].filter(Boolean);
+      text.textContent = details.join('\n');
       const download = document.createElement('a');
       download.href = `/api/field-notes/${encodeURIComponent(noteID)}/attachments/${encodeURIComponent(item.id)}`;
       download.textContent = 'Download';
+      const preview = document.createElement('button');
+      preview.type = 'button';
+      preview.textContent = 'Preview';
+      preview.disabled = !item.preview_kind || item.preview_kind === 'none';
+      preview.addEventListener('click', async () => {
+        try { await showAttachmentPreview(noteID, item); }
+        catch (error) { attachmentStatus.textContent = `Preview error: ${error.message}`; }
+      });
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.textContent = 'Delete attachment';
@@ -76,7 +130,7 @@ async function loadFieldNoteAttachments() {
           attachmentStatus.textContent = `Attachment error: ${error.message}`;
         }
       });
-      row.append(text, download, remove);
+      row.append(text, download, preview, remove);
       attachmentList.append(row);
     }
   } catch (error) {
@@ -106,7 +160,7 @@ async function uploadFieldNoteAttachment() {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
     attachmentFileInput.value = '';
-    attachmentStatus.textContent = `Uploaded ${payload.filename} (${attachmentSize(payload.size)}).`;
+    attachmentStatus.textContent = `Uploaded ${payload.filename} (${attachmentSize(payload.size)}), SHA-256 ${payload.sha256}.`;
     await loadFieldNoteAttachments();
   } catch (error) {
     attachmentStatus.textContent = `Attachment error: ${error.message}`;
@@ -134,4 +188,4 @@ document.addEventListener('caching-tools:map-select', async event => {
 
 void refreshAttachmentNoteOptions().then(loadFieldNoteAttachments).catch(error => { attachmentStatus.textContent = `Attachment error: ${error.message}`; });
 window.refreshFieldNoteAttachments = async () => { await refreshAttachmentNoteOptions(); await loadFieldNoteAttachments(); };
-const attachmentFooter = document.querySelector('footer'); if (attachmentFooter) attachmentFooter.textContent = 'Caching Tools M1.36';
+const attachmentFooter = document.querySelector('footer'); if (attachmentFooter) attachmentFooter.textContent = 'Caching Tools M1.38';
