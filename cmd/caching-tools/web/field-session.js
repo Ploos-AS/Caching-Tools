@@ -24,6 +24,8 @@ const fieldMarkerCustom = sessionControls.querySelector('#field-marker-custom');
 const fieldMarkerNote = sessionControls.querySelector('#field-marker-note');
 const fieldSessionMarkers = sessionControls.querySelector('#field-session-markers');
 let breadcrumbRecordingPaused = false;
+let recordingSegmentID = 0;
+let startNewRecordingSegment = false;
 let liveMarkers = [];
 
 function renderRecordingStatus() {
@@ -31,11 +33,20 @@ function renderRecordingStatus() {
   fieldRecordingResume.disabled = !breadcrumbRecordingPaused;
   fieldRecordingStatus.textContent = breadcrumbRecordingPaused
     ? 'Breadcrumb recording paused. Live navigation continues.'
-    : 'Breadcrumb recording active.';
+    : `Breadcrumb recording active · segment ${recordingSegmentID + 1}.`;
 }
 
-function setBreadcrumbRecordingPaused(paused) {
-  breadcrumbRecordingPaused = paused;
+function pauseBreadcrumbRecording() {
+  if (breadcrumbRecordingPaused) return;
+  breadcrumbRecordingPaused = true;
+  renderRecordingStatus();
+}
+
+function resumeBreadcrumbRecording() {
+  if (!breadcrumbRecordingPaused) return;
+  breadcrumbRecordingPaused = false;
+  recordingSegmentID += 1;
+  startNewRecordingSegment = true;
   renderRecordingStatus();
 }
 
@@ -84,8 +95,45 @@ function addManualMarker() {
 const addBreadcrumbQualityFiltered = addBreadcrumb;
 addBreadcrumb = function addBreadcrumbWithPause(position) {
   if (breadcrumbRecordingPaused) return false;
-  return addBreadcrumbQualityFiltered(position);
+  const accepted = addBreadcrumbQualityFiltered(position);
+  if (!accepted) return false;
+  const item = liveBreadcrumbs[liveBreadcrumbs.length - 1];
+  if (item) item.recordingSegment = recordingSegmentID;
+  startNewRecordingSegment = false;
+  return true;
 };
+
+const sessionStatisticsBeforePause = sessionStatistics;
+sessionStatistics = function sessionStatisticsWithPauseSegments() {
+  if (!liveBreadcrumbs.length) return null;
+  let distanceM = 0;
+  let movingTimeS = 0;
+  let maxSpeedMPS = 0;
+  let acceptedSpeedSamples = 0;
+  for (let index = 1; index < liveBreadcrumbs.length; index += 1) {
+    const previous = liveBreadcrumbs[index - 1];
+    const current = liveBreadcrumbs[index];
+    if ((previous.recordingSegment ?? 0) !== (current.recordingSegment ?? 0)) continue;
+    const segmentDistance = breadcrumbDistanceMeters(previous, current);
+    distanceM += segmentDistance;
+    const previousTime = Date.parse(previous.time);
+    const currentTime = Date.parse(current.time);
+    const deltaS = (currentTime - previousTime) / 1000;
+    if (!Number.isFinite(deltaS) || deltaS <= 0) continue;
+    movingTimeS += deltaS;
+    const speedMPS = segmentDistance / deltaS;
+    if (Number.isFinite(speedMPS) && speedMPS >= 0 && speedMPS <= 100) {
+      maxSpeedMPS = Math.max(maxSpeedMPS, speedMPS);
+      acceptedSpeedSamples += 1;
+    }
+  }
+  const firstTime = Date.parse(liveBreadcrumbs[0].time);
+  const lastTime = Date.parse(liveBreadcrumbs[liveBreadcrumbs.length - 1].time);
+  const durationS = Number.isFinite(firstTime) && Number.isFinite(lastTime) && lastTime >= firstTime ? (lastTime - firstTime) / 1000 : 0;
+  const averageSpeedMPS = movingTimeS > 0 ? distanceM / movingTimeS : 0;
+  return {distanceM, durationS, movingTimeS, averageSpeedMPS, maxSpeedMPS, acceptedSpeedSamples};
+};
+void sessionStatisticsBeforePause;
 
 function markerGPX() {
   return liveMarkers.map((marker, index) => {
@@ -95,24 +143,56 @@ function markerGPX() {
   }).join('\n');
 }
 
+function recordingSegmentsForExport() {
+  const groups = [];
+  for (const point of liveBreadcrumbs) {
+    const segmentID = point.recordingSegment ?? 0;
+    let group = groups[groups.length - 1];
+    if (!group || group.segmentID !== segmentID) {
+      group = {segmentID, points: []};
+      groups.push(group);
+    }
+    group.points.push(point);
+  }
+  return groups;
+}
+
 const breadcrumbGPXWithQuality = breadcrumbGPX;
-breadcrumbGPX = function breadcrumbGPXWithMarkers() {
-  const gpx = breadcrumbGPXWithQuality();
-  if (!liveMarkers.length) return gpx;
-  const markerXML = markerGPX();
-  return gpx.replace(/(\n  <trk>)/, `\n${markerXML}$1`);
+breadcrumbGPX = function breadcrumbGPXWithMarkersAndSegments() {
+  if (!liveBreadcrumbs.length) return breadcrumbGPXWithQuality();
+  const target = fieldForm.elements['target-id'].selectedOptions[0]?.textContent || 'Live navigation session';
+  const tolerance = qualityNumber(fieldSimplifyTolerance, 5, true);
+  const groups = recordingSegmentsForExport();
+  let exportedPointCount = 0;
+  const segments = groups.map(group => {
+    const source = group.points;
+    const exportPoints = fieldExportSimplify.checked ? simplifyBreadcrumbs(source, tolerance) : source;
+    exportedPointCount += exportPoints.length;
+    const points = exportPoints.map(item =>
+      `      <trkpt lat="${item.latitude.toFixed(7)}" lon="${item.longitude.toFixed(7)}"><time>${escapeXML(item.time)}</time></trkpt>`
+    ).join('\n');
+    return `    <trkseg>\n${points}\n    </trkseg>`;
+  }).join('\n');
+  if (fieldExportSimplify.checked) {
+    fieldRecordingStatus.textContent = `GPX simplification: ${liveBreadcrumbs.length} → ${exportedPointCount} points across ${groups.length} recording segment${groups.length === 1 ? '' : 's'}.`;
+  }
+  const markers = liveMarkers.length ? `${markerGPX()}\n` : '';
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Caching Tools" xmlns="http://www.topografix.com/GPX/1/1">\n${markers}  <trk>\n    <name>${escapeXML(`Caching Tools session - ${target}`)}</name>\n${segments}\n  </trk>\n</gpx>\n`;
 };
 
 const startLiveNavigationWithQuality = startLiveNavigation;
 startLiveNavigation = function startLiveNavigationWithSessionReset() {
   liveMarkers = [];
-  setBreadcrumbRecordingPaused(false);
+  breadcrumbRecordingPaused = false;
+  recordingSegmentID = 0;
+  startNewRecordingSegment = false;
+  renderRecordingStatus();
   renderMarkers();
   startLiveNavigationWithQuality();
 };
 
-fieldRecordingPause.addEventListener('click', () => setBreadcrumbRecordingPaused(true));
-fieldRecordingResume.addEventListener('click', () => setBreadcrumbRecordingPaused(false));
+fieldRecordingPause.addEventListener('click', pauseBreadcrumbRecording);
+fieldRecordingResume.addEventListener('click', resumeBreadcrumbRecording);
 sessionControls.querySelector('#field-marker-add').addEventListener('click', addManualMarker);
 sessionControls.querySelector('#field-marker-clear').addEventListener('click', () => {
   liveMarkers = [];
