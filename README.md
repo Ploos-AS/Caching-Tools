@@ -6,129 +6,30 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.38 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.40 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
-- DD / DMM / DMS parsing and conversion
-- great-circle distance, bearing and waypoint projection
-- WGS84 ↔ UTM plus 1 m MGRS generation
-- Norway and Svalbard UTM zone exceptions
-- WGS84 (`EPSG:4326`) ↔ ETRS89 (`EPSG:4258`) geographic conversion with explicit approximation metadata
-- ETRS89 / UTM zones 28N–38N (`EPSG:25828`–`EPSG:25838`) using GRS80
-- local datum/CRS converter UI and `POST /api/coordinates/crs`
-- field navigation to saved waypoints with distance and bearing
-- nearest-point and cross-track distance to saved routes/tracks
-- route/track along-distance, remaining distance and progress percentage
-- next path point, distance to next point and forward bearing guidance
-- configurable off-route threshold and arrival radius
-- explicit `on-route`, `off-route`, `next-point-arrival`, `go-to` and `arrived` field statuses
-- back-on-track guidance points to the nearest path position when outside the deviation threshold
-- live browser navigation sessions using `watchPosition`
-- continuous distance, bearing, progress and guidance refresh during live mode
-- serialized live navigation requests so newer GPS positions replace stale pending updates
-- in-memory session breadcrumbs with timestamp, coordinate and browser-reported accuracy
-- configurable minimum breadcrumb distance, default 3 m
-- configurable maximum accepted browser GPS accuracy, default 50 m
-- accepted/rejected breadcrumb quality counters
-- live session statistics for travelled distance, duration, average speed and maximum accepted segment speed
-- defensive speed handling ignores invalid/non-positive time deltas and >360 km/h maximum-speed outliers
-- pause/resume breadcrumb recording while live navigation continues
-- resume starts a new recording segment so statistics and GPX do not bridge pause gaps
-- manual in-memory field markers with `cache`, `trailhead`, `note` and custom marker types
-- optional marker notes and current-position capture even while breadcrumb recording is paused
-- explicit promotion of a selected session marker into the persistent local waypoint store
-- promoted markers preserve coordinate, marker type, note and original marker timestamp provenance
-- duplicate promotion of the same in-memory marker is prevented during the current page session
-- promoted waypoints immediately refresh the waypoint list, navigation targets and local map
-- persistent local field notes/logbook under `/data/field-notes.json`
-- field-note title, body, status, type and occurrence timestamp
-- optional soft links from field notes to saved waypoints and mystery workspaces
-- field-note create/edit/delete UI and CRUD API
-- browser-local field-note free-text search and status/type/waypoint/workspace filters
-- explicit export of the currently filtered field-note set as versioned JSON or CSV
-- field-note search/filter/export does not modify the persistent store or schema
-- versioned field-note JSON backup import via `POST /api/field-notes/import`
-- strict field-note bundle format/version validation
-- imported field notes receive new local IDs and fresh create/update timestamps
-- field-note restore appends atomically and never partially imports an invalid bundle
-- existing notes remain unchanged during backup restore
-- local logbook dashboard with total notes, last-7-day and last-30-day activity
-- field-note status/type distributions and six-month UTC activity summary
-- most-used linked waypoint and mystery-workspace summaries with local name resolution
-- dashboard aggregation is browser-local and read-only with no external telemetry
-- waypoint selection on the local map opens a waypoint-specific field-note view using stable waypoint IDs
-- map waypoint logbook lists only notes whose `waypoint_id` matches the selected waypoint
-- one-click creation of a new field note with the selected map waypoint preselected
-- route/track map selections do not disturb the current waypoint logbook context
-- map waypoint logbook refreshes after field-note CRUD/import changes
-- local field-note attachments stored under `/data/field-note-attachments/<note-id>/`
-- attachment upload/list/download/delete API for existing field notes
-- 10 MiB per-file attachment limit with server-side byte sniffing and explicit content-type allowlist
-- attachment filenames are sanitized and generated `att-*` IDs are path-traversal checked before filesystem access
-- attachment downloads force `Content-Disposition: attachment` and `X-Content-Type-Options: nosniff`
-- deleting a field note also removes its local attachment directory
-- attachment UI supports field-note selection, upload, download, delete and refresh
-- attachment-aware ZIP backup via `GET /api/field-notes/archive`
-- ZIP archive keeps note/attachment metadata in `manifest.json` and binary attachments as separate archive entries
-- attachment-aware restore via `POST /api/field-notes/archive` with 128 MiB expanded/archive guardrails
-- archive restore rejects unsafe paths, duplicate/unreferenced entries and invalid attachment content before import
-- restored notes and attachments receive new local IDs while note content, occurrence time and soft references are preserved
-- restore appends without overwriting existing local objects and rolls back the newly created restore set if attachment creation fails
-- SHA-256, preview kind, size and derived text/PDF metadata are exposed for local attachments
-- existing older attachment sidecars remain compatible because derived metadata is recalculated from stored bytes
-- safe local attachment previews via a separate `/preview` endpoint with `inline` disposition and `nosniff`
-- image and PDF previews stay local; text-like previews are capped at 64 KiB
-- attachment UI shows checksum, text line count/PDF version where applicable and an explicit Preview action
-- explicit browser-side export of the current breadcrumb session as a GPX 1.1 track
-- manual markers export as standard GPX 1.1 waypoints
-- paused/resumed recording exports as separate GPX `<trkseg>` elements
-- optional local GPX-export simplification with configurable tolerance, default 5 m
-- simplification operates independently inside recording segments and leaves manual markers untouched
-- timestamped `caching-tools-session-*.gpx` downloads
-- breadcrumb export does not persist the session under `/data`
-- breadcrumbs, markers and session statistics are cleared on new sessions or page reload unless explicitly exported or a marker is explicitly promoted
-- track progress respects segment boundaries without bridging segment gaps
-- optional one-shot browser geolocation as local field-navigation input
-- map selection can become the field-navigation target
-- bearing/bearing, bearing/distance and circle/circle intersections
-- direct save of intersection solutions as local waypoints
-- final-coordinate formula solver with variables A–Z
-- persistent mystery workspaces under `/data/mystery-workspaces.json`
-- workspace GC code/title, notes, A–Z variables and intermediate results
-- workspace latitude/longitude final formulas and saved final-waypoint reference
-- **Use in solver** loads workspace variables and formulas directly into the final-coordinate solver
-- latest puzzle-helper result can be saved as a workspace intermediate result
-- numeric puzzle-helper output can be assigned directly to an A–Z workspace variable
-- saved final waypoints automatically link back to the active mystery workspace
-- portable, versioned mystery-workspace JSON export/import
-- optional final-waypoint inclusion in exported mystery bundles
-- imported bundles create new local workspace/waypoint IDs without changing the persistent store format
-- create/edit/delete mystery workspace UI and CRUD API
-- A1Z26 / letter values and sums
-- Caesar / ROT shifts and ROT47
-- Morse encode/decode
-- Bacon cipher encode/decode
-- base conversion between bases 2 and 36
-- telephone/keypad letter values
-- digit sum and digital root/checksum
-- configurable monoalphabetic substitution
-- local waypoint create/list/edit/delete and persistence under `/data/waypoints.json`
-- GPX 1.1 waypoint import/export
-- GPX route/track inspection and persistent paths under `/data/paths.json`
-- segment-aware distance, elevation, duration and speed statistics
-- rename and GPX export for saved routes/tracks
-- local route point deletion and reordering
-- local track point deletion/reordering within segments
-- split and merge track segments with persistent geometry updates
-- visual route/track point selection directly on the local SVG map
-- drag saved route/track points to new coordinates
-- delete selected path points and split/merge track segments from the map editor
-- existing elevation/timestamp point data preserved during geometry editing
-- interactive local SVG map with pan, zoom, selection and list linkage
+- DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
+- distance, bearing, projection and coordinate-intersection tools
+- persistent local waypoints plus GPX 1.1 import/export
+- persistent routes/tracks with statistics and geometry editing
+- interactive offline SVG map with pan, zoom, selection and visual route/track editing
+- optional local map overlays for waypoint labels and configurable waypoint-radius rings
+- current field-navigation position marker and selected-waypoint guidance line on the SVG map
+- selected waypoint arrival-radius overlay tied to the field-navigation arrival-radius setting
+- field navigation to waypoints and nearest/cross-track/progress guidance for saved paths
+- live browser geolocation navigation with quality-filtered, segment-aware breadcrumbs
+- explicit GPX export of live sessions and promotion of manual field markers to waypoints
+- persistent mystery workspaces, final-coordinate formulas and provider-neutral puzzle helpers
+- persistent local field notes/logbook with search/filter/export and map waypoint linkage
+- local field-note attachments with 10 MiB limit, type validation, safe download/preview and cascade cleanup
+- attachment-aware ZIP backup/restore with validation, new IDs and rollback semantics
+- SHA-256 attachment metadata plus explicit read-only integrity verification
+- local attachment integrity UI/report with `ok`, `mismatch`, `missing` and `unrecorded` states
 - no external map tiles, CDN, provider account, API key or network dependency for core tools
-- interactive web UI and JSON/GPX APIs
+- one OCI-oriented Go application with local persistence under `/data`
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_38.md](docs/M1_38.md).
+See [docs/M1_40.md](docs/M1_40.md). Previous attachment integrity details are in [docs/M1_39.md](docs/M1_39.md).
 
 ## Run with Go
 
@@ -198,7 +99,9 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.36: local field-note attachments with size/type validation, download hardening and cascade cleanup
 - M1.37: attachment-aware ZIP backup/restore with manifest validation, new local IDs and rollback on restore failure
 - M1.38: attachment SHA-256 metadata and safe local image/PDF/text previews
-- Next: richer map overlays, attachment integrity verification workflows, or additional well-defined CRS families
+- M1.39: explicit read-only attachment integrity verification and downloadable local report
+- M1.40: richer local GPS map overlays with labels, radius rings and waypoint guidance visualization
+- Next: route/track guidance overlays, additional well-defined CRS families, or map/list stable-ID linkage hardening
 
 ## License
 
