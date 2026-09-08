@@ -1,0 +1,217 @@
+package main
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+)
+
+const fieldNoteAttachmentMaxBytes int64 = 10 * 1024 * 1024
+
+var allowedFieldNoteAttachmentTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/png": true,
+	"image/webp": true,
+	"image/gif": true,
+	"application/pdf": true,
+	"text/plain; charset=utf-8": true,
+	"application/json": true,
+	"text/csv": true,
+	"application/gpx+xml": true,
+	"application/xml": true,
+	"text/xml; charset=utf-8": true,
+}
+
+type fieldNoteAttachment struct {
+	ID          string `json:"id"`
+	NoteID      string `json:"note_id"`
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Size        int64  `json:"size"`
+	CreatedAt   string `json:"created_at"`
+}
+
+type fieldNoteAttachmentStore struct {
+	mu      sync.Mutex
+	baseDir string
+}
+
+func newFieldNoteAttachmentStore(dataDir string) *fieldNoteAttachmentStore {
+	return &fieldNoteAttachmentStore{baseDir: filepath.Join(dataDir, "field-note-attachments")}
+}
+
+func (s *fieldNoteAttachmentStore) noteDir(noteID string) string {
+	return filepath.Join(s.baseDir, noteID)
+}
+
+func sanitizeAttachmentFilename(name string) (string, error) {
+	name = strings.TrimSpace(filepath.Base(strings.ReplaceAll(name, "\\", "/")))
+	if name == "" || name == "." {
+		return "", errors.New("attachment filename is required")
+	}
+	if len(name) > 255 {
+		return "", errors.New("attachment filename is too long")
+	}
+	return name, nil
+}
+
+func detectAllowedAttachmentType(data []byte) (string, error) {
+	contentType := http.DetectContentType(data)
+	if allowedFieldNoteAttachmentTypes[contentType] {
+		return contentType, nil
+	}
+	return "", fmt.Errorf("unsupported attachment content type %q", contentType)
+}
+
+func readAttachment(file multipart.File) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(file, fieldNoteAttachmentMaxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, errors.New("attachment is empty")
+	}
+	if int64(len(data)) > fieldNoteAttachmentMaxBytes {
+		return nil, fmt.Errorf("attachment exceeds %d byte limit", fieldNoteAttachmentMaxBytes)
+	}
+	return data, nil
+}
+
+func (s *fieldNoteAttachmentStore) create(noteID, filename string, data []byte) (fieldNoteAttachment, error) {
+	filename, err := sanitizeAttachmentFilename(filename)
+	if err != nil {
+		return fieldNoteAttachment{}, err
+	}
+	contentType, err := detectAllowedAttachmentType(data)
+	if err != nil {
+		return fieldNoteAttachment{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	dir := s.noteDir(noteID)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fieldNoteAttachment{}, err
+	}
+	id := fmt.Sprintf("att-%x", time.Now().UnixNano())
+	item := fieldNoteAttachment{ID: id, NoteID: noteID, Filename: filename, ContentType: contentType, Size: int64(len(data)), CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	dataPath := filepath.Join(dir, id+".bin")
+	metaPath := filepath.Join(dir, id+".json")
+	dataTmp := dataPath + ".tmp"
+	metaTmp := metaPath + ".tmp"
+	if err := os.WriteFile(dataTmp, data, 0o600); err != nil {
+		return fieldNoteAttachment{}, err
+	}
+	if err := os.Rename(dataTmp, dataPath); err != nil {
+		_ = os.Remove(dataTmp)
+		return fieldNoteAttachment{}, err
+	}
+	meta, err := json.MarshalIndent(item, "", "  ")
+	if err != nil {
+		_ = os.Remove(dataPath)
+		return fieldNoteAttachment{}, err
+	}
+	meta = append(meta, '\n')
+	if err := os.WriteFile(metaTmp, meta, 0o600); err != nil {
+		_ = os.Remove(dataPath)
+		return fieldNoteAttachment{}, err
+	}
+	if err := os.Rename(metaTmp, metaPath); err != nil {
+		_ = os.Remove(metaTmp)
+		_ = os.Remove(dataPath)
+		return fieldNoteAttachment{}, err
+	}
+	return item, nil
+}
+
+func (s *fieldNoteAttachmentStore) list(noteID string) ([]fieldNoteAttachment, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	entries, err := os.ReadDir(s.noteDir(noteID))
+	if errors.Is(err, os.ErrNotExist) {
+		return []fieldNoteAttachment{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	items := []fieldNoteAttachment{}
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(s.noteDir(noteID), entry.Name()))
+		if err != nil {
+			return nil, err
+		}
+		var item fieldNoteAttachment
+		if err := json.Unmarshal(data, &item); err != nil {
+			return nil, fmt.Errorf("read attachment metadata: %w", err)
+		}
+		if item.NoteID == noteID {
+			items = append(items, item)
+		}
+	}
+	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt > items[j].CreatedAt })
+	return items, nil
+}
+
+func (s *fieldNoteAttachmentStore) get(noteID, id string) (fieldNoteAttachment, []byte, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	metaPath := filepath.Join(s.noteDir(noteID), id+".json")
+	meta, err := os.ReadFile(metaPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return fieldNoteAttachment{}, nil, os.ErrNotExist
+	}
+	if err != nil {
+		return fieldNoteAttachment{}, nil, err
+	}
+	var item fieldNoteAttachment
+	if err := json.Unmarshal(meta, &item); err != nil {
+		return fieldNoteAttachment{}, nil, err
+	}
+	if item.NoteID != noteID || item.ID != id {
+		return fieldNoteAttachment{}, nil, os.ErrNotExist
+	}
+	data, err := os.ReadFile(filepath.Join(s.noteDir(noteID), id+".bin"))
+	if errors.Is(err, os.ErrNotExist) {
+		return fieldNoteAttachment{}, nil, os.ErrNotExist
+	}
+	return item, data, err
+}
+
+func (s *fieldNoteAttachmentStore) delete(noteID, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	metaPath := filepath.Join(s.noteDir(noteID), id+".json")
+	if _, err := os.Stat(metaPath); errors.Is(err, os.ErrNotExist) {
+		return os.ErrNotExist
+	} else if err != nil {
+		return err
+	}
+	if err := os.Remove(filepath.Join(s.noteDir(noteID), id+".bin")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	if err := os.Remove(metaPath); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *fieldNoteAttachmentStore) deleteForNote(noteID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := os.RemoveAll(s.noteDir(noteID)); err != nil {
+		return err
+	}
+	return nil
+}
