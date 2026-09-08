@@ -14,11 +14,24 @@ document.addEventListener('caching-tools:map-select', (event) => {
   selected.scrollIntoView({behavior: 'smooth', block: 'center'});
 });
 
+function loadFieldNotes() {
+  if (document.querySelector('script[data-field-notes]')) return;
+  const notes = document.createElement('script');
+  notes.src = '/field-notes.js';
+  notes.dataset.fieldNotes = 'true';
+  document.body.append(notes);
+}
+
 function loadFieldSession() {
-  if (document.querySelector('script[data-field-session]')) return;
+  const existing = document.querySelector('script[data-field-session]');
+  if (existing) {
+    existing.addEventListener('load', loadFieldNotes, {once:true});
+    return;
+  }
   const session = document.createElement('script');
   session.src = '/field-session.js';
   session.dataset.fieldSession = 'true';
+  session.addEventListener('load', loadFieldNotes, {once:true});
   document.body.append(session);
 }
 
