@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.37 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.38 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -73,6 +73,11 @@ M1.37 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - archive restore rejects unsafe paths, duplicate/unreferenced entries and invalid attachment content before import
 - restored notes and attachments receive new local IDs while note content, occurrence time and soft references are preserved
 - restore appends without overwriting existing local objects and rolls back the newly created restore set if attachment creation fails
+- SHA-256, preview kind, size and derived text/PDF metadata are exposed for local attachments
+- existing older attachment sidecars remain compatible because derived metadata is recalculated from stored bytes
+- safe local attachment previews via a separate `/preview` endpoint with `inline` disposition and `nosniff`
+- image and PDF previews stay local; text-like previews are capped at 64 KiB
+- attachment UI shows checksum, text line count/PDF version where applicable and an explicit Preview action
 - explicit browser-side export of the current breadcrumb session as a GPX 1.1 track
 - manual markers export as standard GPX 1.1 waypoints
 - paused/resumed recording exports as separate GPX `<trkseg>` elements
@@ -123,7 +128,7 @@ M1.37 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_37.md](docs/M1_37.md).
+See [docs/M1_38.md](docs/M1_38.md).
 
 ## Run with Go
 
@@ -192,7 +197,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.35: map waypoint logbook integration and prefilled field-note creation from map selection
 - M1.36: local field-note attachments with size/type validation, download hardening and cascade cleanup
 - M1.37: attachment-aware ZIP backup/restore with manifest validation, new local IDs and rollback on restore failure
-- Next: richer map overlays, attachment previews/metadata, or additional well-defined CRS families
+- M1.38: attachment SHA-256 metadata and safe local image/PDF/text previews
+- Next: richer map overlays, attachment integrity verification workflows, or additional well-defined CRS families
 
 ## License
 
