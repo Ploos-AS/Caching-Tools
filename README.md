@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.40 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.41 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
 - distance, bearing, projection and coordinate-intersection tools
@@ -16,6 +16,9 @@ M1.40 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - optional local map overlays for waypoint labels and configurable waypoint-radius rings
 - current field-navigation position marker and selected-waypoint guidance line on the SVG map
 - selected waypoint arrival-radius overlay tied to the field-navigation arrival-radius setting
+- route/track navigation overlays for current-to-nearest-path, nearest point, next point and forward segment
+- route/track overlay status for `on-route`, `off-route`, `next-point-arrival` and `arrived`
+- map overlay readout for cross-track distance, remaining distance and forward bearing
 - field navigation to waypoints and nearest/cross-track/progress guidance for saved paths
 - live browser geolocation navigation with quality-filtered, segment-aware breadcrumbs
 - explicit GPX export of live sessions and promotion of manual field markers to waypoints
@@ -29,7 +32,7 @@ M1.40 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - one OCI-oriented Go application with local persistence under `/data`
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_40.md](docs/M1_40.md). Previous attachment integrity details are in [docs/M1_39.md](docs/M1_39.md).
+See [docs/M1_41.md](docs/M1_41.md). Waypoint overlay details are in [docs/M1_40.md](docs/M1_40.md).
 
 ## Run with Go
 
@@ -101,7 +104,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.38: attachment SHA-256 metadata and safe local image/PDF/text previews
 - M1.39: explicit read-only attachment integrity verification and downloadable local report
 - M1.40: richer local GPS map overlays with labels, radius rings and waypoint guidance visualization
-- Next: route/track guidance overlays, additional well-defined CRS families, or map/list stable-ID linkage hardening
+- M1.41: route/track navigation overlays for nearest path, next point, forward guidance and status
+- Next: stable-ID map/list linkage hardening, additional well-defined CRS families, or field-navigation map polish
 
 ## License
 
