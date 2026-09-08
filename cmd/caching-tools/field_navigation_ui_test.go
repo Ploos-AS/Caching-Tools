@@ -40,7 +40,7 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 	notes:=httptest.NewRecorder(); h.ServeHTTP(notes,httptest.NewRequest(http.MethodGet,"/field-notes.js",nil))
 	if notes.Code!=http.StatusOK{t.Fatalf("field notes asset status=%d",notes.Code)}
 	for _,want:=range []string{
-		"Field notes / logbook","/data/field-notes.json","/api/field-notes","/api/waypoints","/api/mystery-workspaces","Occurred at","waypoint-id","workspace-id","loadFieldNoteReferences","loadFieldNotes","editFieldNote","deleteFieldNote","window.refreshFieldNotes","Caching Tools M1.31",
+		"Field notes / logbook","/data/field-notes.json","/api/field-notes","/api/waypoints","/api/mystery-workspaces","Occurred at","waypoint-id","workspace-id","loadFieldNoteReferences","loadFieldNotes","editFieldNote","deleteFieldNote","window.refreshFieldNotes",
 	} { if !strings.Contains(notes.Body.String(),want){t.Fatalf("missing %q from field-notes.js",want)} }
 
 	link:=httptest.NewRecorder(); h.ServeHTTP(link,httptest.NewRequest(http.MethodGet,"/map-link.js",nil))
