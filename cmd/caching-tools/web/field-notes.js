@@ -27,6 +27,11 @@ fieldNotesSection.innerHTML = `
     <button type="button" id="field-note-export-json">Export filtered JSON</button>
     <button type="button" id="field-note-export-csv">Export filtered CSV</button>
   </div>
+  <h3>Backup / restore</h3>
+  <div id="field-note-import-controls" class="form-grid nav-grid">
+    <label>Field-note JSON backup<input id="field-note-import-file" type="file" accept=".json,application/json"></label>
+    <button type="button" id="field-note-import-json">Import JSON backup</button>
+  </div>
   <p id="field-note-filter-status-text" aria-live="polite"></p>
   <p id="field-note-status" aria-live="polite"></p>
   <div id="field-note-list" class="result">Loading field notes...</div>`;
@@ -45,6 +50,7 @@ const fieldNoteFilterType = fieldNotesSection.querySelector('#field-note-filter-
 const fieldNoteFilterWaypoint = fieldNotesSection.querySelector('#field-note-filter-waypoint');
 const fieldNoteFilterWorkspace = fieldNotesSection.querySelector('#field-note-filter-workspace');
 const fieldNoteFilterStatusText = fieldNotesSection.querySelector('#field-note-filter-status-text');
+const fieldNoteImportFile = fieldNotesSection.querySelector('#field-note-import-file');
 let fieldNoteCache = [];
 
 function localDateTimeToISO(value) {
@@ -241,6 +247,24 @@ function exportFilteredFieldNotesCSV() {
   fieldNoteStatus.textContent = `Exported ${items.length} filtered field note${items.length === 1 ? '' : 's'} as CSV.`;
 }
 
+async function importFieldNotesJSON() {
+  const file = fieldNoteImportFile.files[0];
+  if (!file) {
+    fieldNoteStatus.textContent = 'Select a field-note JSON backup first.';
+    return;
+  }
+  try {
+    const text = await file.text();
+    const bundle = JSON.parse(text);
+    const result = await postJSON('/api/field-notes/import', bundle);
+    fieldNoteImportFile.value = '';
+    fieldNoteStatus.textContent = `Imported ${result.imported} field note${result.imported === 1 ? '' : 's'} with new local IDs.`;
+    await loadFieldNotes();
+  } catch (error) {
+    fieldNoteStatus.textContent = `Import error: ${error.message}`;
+  }
+}
+
 fieldNoteForm.addEventListener('submit', async event => {
   event.preventDefault();
   const id = fieldNoteForm.elements['note-id'].value;
@@ -271,8 +295,9 @@ fieldNotesSection.querySelector('#field-note-filter-clear').addEventListener('cl
 });
 fieldNotesSection.querySelector('#field-note-export-json').addEventListener('click', exportFilteredFieldNotesJSON);
 fieldNotesSection.querySelector('#field-note-export-csv').addEventListener('click', exportFilteredFieldNotesCSV);
+fieldNotesSection.querySelector('#field-note-import-json').addEventListener('click', importFieldNotesJSON);
 fieldNoteCancel.addEventListener('click', resetFieldNoteForm);
 Promise.all([loadFieldNoteReferences(), loadFieldNotes()]).catch(error => { fieldNoteStatus.textContent = `Error: ${error.message}`; });
 window.refreshFieldNotes = loadFieldNotes;
 window.refreshFieldNoteReferences = loadFieldNoteReferences;
-const fieldNoteFooter = document.querySelector('footer'); if (fieldNoteFooter) fieldNoteFooter.textContent = 'Caching Tools M1.32';
+const fieldNoteFooter = document.querySelector('footer'); if (fieldNoteFooter) fieldNoteFooter.textContent = 'Caching Tools M1.33';
