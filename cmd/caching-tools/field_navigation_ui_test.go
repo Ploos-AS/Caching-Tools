@@ -37,7 +37,13 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 		"Promote marker","Waypoint name","field-marker-promote-select","field-marker-waypoint-name","field-marker-promote","promoteManualMarker","suggestedWaypointName","promotedWaypointID","postJSON('/api/waypoints'","loadWaypoints()","loadFieldTargets()","refreshLocalMap","Promoted from live field session marker","Caching Tools M1.30",
 	} { if !strings.Contains(session.Body.String(),want){t.Fatalf("missing %q from field-session.js",want)} }
 
+	notes:=httptest.NewRecorder(); h.ServeHTTP(notes,httptest.NewRequest(http.MethodGet,"/field-notes.js",nil))
+	if notes.Code!=http.StatusOK{t.Fatalf("field notes asset status=%d",notes.Code)}
+	for _,want:=range []string{
+		"Field notes / logbook","/data/field-notes.json","/api/field-notes","/api/waypoints","/api/mystery-workspaces","Occurred at","waypoint-id","workspace-id","loadFieldNoteReferences","loadFieldNotes","editFieldNote","deleteFieldNote","window.refreshFieldNotes","Caching Tools M1.31",
+	} { if !strings.Contains(notes.Body.String(),want){t.Fatalf("missing %q from field-notes.js",want)} }
+
 	link:=httptest.NewRecorder(); h.ServeHTTP(link,httptest.NewRequest(http.MethodGet,"/map-link.js",nil))
 	if link.Code!=http.StatusOK{t.Fatalf("map-link status=%d",link.Code)}
-	for _,want:=range []string{"/field-quality.js","data-field-quality","/field-session.js","data-field-session","loadFieldSession","/map-editor.js"} { if !strings.Contains(link.Body.String(),want){t.Fatalf("missing %q from map-link.js",want)} }
+	for _,want:=range []string{"/field-quality.js","data-field-quality","/field-session.js","data-field-session","loadFieldSession","/field-notes.js","data-field-notes","loadFieldNotes","/map-editor.js"} { if !strings.Contains(link.Body.String(),want){t.Fatalf("missing %q from map-link.js",want)} }
 }
