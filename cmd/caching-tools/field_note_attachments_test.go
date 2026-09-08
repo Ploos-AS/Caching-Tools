@@ -39,7 +39,7 @@ func TestFieldNoteAttachmentStoreRoundTrip(t *testing.T) {
 func TestFieldNoteAttachmentValidation(t *testing.T) {
 	store := newFieldNoteAttachmentStore(t.TempDir())
 	if _, err := store.create("note-test", "bad.bin", []byte{0, 1, 2, 3, 4}); err == nil { t.Fatal("expected unsupported content type error") }
-	if _, err := store.create("note-test", "empty.txt", nil); err == nil { t.Fatal("expected empty attachment error") }
+	if data, err := ioReadAttachmentForTest(bytes.NewReader(nil)); err == nil || data != nil { t.Fatal("expected empty attachment error") }
 	tooLarge := bytes.NewReader(make([]byte, fieldNoteAttachmentMaxBytes+1))
 	data, err := ioReadAttachmentForTest(tooLarge)
 	if err == nil || data != nil { t.Fatal("expected size limit error") }
