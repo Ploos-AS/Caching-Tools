@@ -29,7 +29,14 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 		"addBreadcrumbFiltered","qualityRejectedAccuracy","qualityRejectedDistance","simplifyBreadcrumbs","pointSegmentDistanceMeters","breadcrumbGPXWithQuality","GPX simplification","Caching Tools M1.28",
 	} { if !strings.Contains(quality.Body.String(),want){t.Fatalf("missing %q from field-quality.js",want)} }
 
+	session:=httptest.NewRecorder(); h.ServeHTTP(session,httptest.NewRequest(http.MethodGet,"/field-session.js",nil))
+	if session.Code!=http.StatusOK{t.Fatalf("session asset status=%d",session.Code)}
+	for _,want:=range []string{
+		"Pause breadcrumb recording","Resume breadcrumb recording","Breadcrumb recording paused. Live navigation continues.","recordingSegmentID","addBreadcrumbWithPause","sessionStatisticsWithPauseSegments",
+		"Marker type","cache","trailhead","note","custom","Add marker at current position","field-marker-add","liveMarkers","markerGPX","<wpt lat=","recordingSegmentsForExport","breadcrumbGPXWithMarkersAndSegments","Caching Tools M1.29",
+	} { if !strings.Contains(session.Body.String(),want){t.Fatalf("missing %q from field-session.js",want)} }
+
 	link:=httptest.NewRecorder(); h.ServeHTTP(link,httptest.NewRequest(http.MethodGet,"/map-link.js",nil))
 	if link.Code!=http.StatusOK{t.Fatalf("map-link status=%d",link.Code)}
-	for _,want:=range []string{"/field-quality.js","data-field-quality","/map-editor.js"} { if !strings.Contains(link.Body.String(),want){t.Fatalf("missing %q from map-link.js",want)} }
+	for _,want:=range []string{"/field-quality.js","data-field-quality","/field-session.js","data-field-session","loadFieldSession","/map-editor.js"} { if !strings.Contains(link.Body.String(),want){t.Fatalf("missing %q from map-link.js",want)} }
 }
