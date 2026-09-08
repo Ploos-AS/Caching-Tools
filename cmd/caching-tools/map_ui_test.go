@@ -26,7 +26,7 @@ func TestMapOverlayUIAsset(t *testing.T) {
 		"Waypoint labels","Waypoint radius","Position / target line","Route / track guidance",
 		"map-overlay-layer","map-overlay-radius","map-overlay-position","map-overlay-guidance","map-overlay-arrival",
 		"map-overlay-cross-track","map-overlay-nearest","map-overlay-forward","map-overlay-next","map-overlay-next-arrival",
-		"map-overlay-status-off-route","map-overlay-status-arrived","map-overlay-status-next-point-arrival",
+		"map-overlay-status-${status}","guidance?.status",
 		"caching-tools:map-rendered","caching-tools:map-select","/api/waypoints","field-navigation-form","arrival-radius",
 		"navigateFieldWithoutOverlay","progress.next_point","forward_bearing_deg","cross_track_m","remaining_m","refreshMapOverlays",
 	} {
