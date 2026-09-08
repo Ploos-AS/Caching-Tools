@@ -14,11 +14,24 @@ document.addEventListener('caching-tools:map-select', (event) => {
   selected.scrollIntoView({behavior: 'smooth', block: 'center'});
 });
 
+function loadFieldNoteArchive() {
+  if (document.querySelector('script[data-field-note-archive]')) return;
+  const archive = document.createElement('script');
+  archive.src = '/field-note-archive.js';
+  archive.dataset.fieldNoteArchive = 'true';
+  document.body.append(archive);
+}
+
 function loadFieldNoteAttachments() {
-  if (document.querySelector('script[data-field-note-attachments]')) return;
+  const existing = document.querySelector('script[data-field-note-attachments]');
+  if (existing) {
+    existing.addEventListener('load', loadFieldNoteArchive, {once:true});
+    return;
+  }
   const attachments = document.createElement('script');
   attachments.src = '/field-note-attachments.js';
   attachments.dataset.fieldNoteAttachments = 'true';
+  attachments.addEventListener('load', loadFieldNoteArchive, {once:true});
   document.body.append(attachments);
 }
 
