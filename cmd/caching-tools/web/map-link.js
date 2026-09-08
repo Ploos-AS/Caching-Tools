@@ -14,11 +14,24 @@ document.addEventListener('caching-tools:map-select', (event) => {
   selected.scrollIntoView({behavior: 'smooth', block: 'center'});
 });
 
+function loadMapLogbook() {
+  if (document.querySelector('script[data-map-logbook]')) return;
+  const mapLogbook = document.createElement('script');
+  mapLogbook.src = '/map-logbook.js';
+  mapLogbook.dataset.mapLogbook = 'true';
+  document.body.append(mapLogbook);
+}
+
 function loadFieldNoteDashboard() {
-  if (document.querySelector('script[data-field-note-dashboard]')) return;
+  const existing = document.querySelector('script[data-field-note-dashboard]');
+  if (existing) {
+    existing.addEventListener('load', loadMapLogbook, {once:true});
+    return;
+  }
   const dashboard = document.createElement('script');
   dashboard.src = '/field-notes-dashboard.js';
   dashboard.dataset.fieldNoteDashboard = 'true';
+  dashboard.addEventListener('load', loadMapLogbook, {once:true});
   document.body.append(dashboard);
 }
 
