@@ -21,4 +21,15 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 		"Export session GPX","field-breadcrumb-export","breadcrumbGPX","exportBreadcrumbGPX","escapeXML","<gpx version=\"1.1\"","<trkseg>","<trkpt lat=","application/gpx+xml","new Blob","URL.createObjectURL","URL.revokeObjectURL","caching-tools-session-","No breadcrumb points to export",
 		"Session statistics","field-session-stats","sessionStatistics","breadcrumbDistanceMeters","renderSessionStatistics","Average speed","Maximum accepted segment speed","Speed samples above 360 km/h","Caching Tools M1.27",
 	} { if !strings.Contains(asset.Body.String(),want){t.Fatalf("missing %q",want)} }
+
+	quality:=httptest.NewRecorder(); h.ServeHTTP(quality,httptest.NewRequest(http.MethodGet,"/field-quality.js",nil))
+	if quality.Code!=http.StatusOK{t.Fatalf("quality asset status=%d",quality.Code)}
+	for _,want:=range []string{
+		"Minimum breadcrumb distance","Maximum GPS accuracy","Simplify GPX export","field-min-distance","field-max-accuracy","field-export-simplify","field-simplify-tolerance",
+		"addBreadcrumbFiltered","qualityRejectedAccuracy","qualityRejectedDistance","simplifyBreadcrumbs","pointSegmentDistanceMeters","breadcrumbGPXWithQuality","GPX simplification","Caching Tools M1.28",
+	} { if !strings.Contains(quality.Body.String(),want){t.Fatalf("missing %q from field-quality.js",want)} }
+
+	link:=httptest.NewRecorder(); h.ServeHTTP(link,httptest.NewRequest(http.MethodGet,"/map-link.js",nil))
+	if link.Code!=http.StatusOK{t.Fatalf("map-link status=%d",link.Code)}
+	for _,want:=range []string{"/field-quality.js","data-field-quality","/map-editor.js"} { if !strings.Contains(link.Body.String(),want){t.Fatalf("missing %q from map-link.js",want)} }
 }
