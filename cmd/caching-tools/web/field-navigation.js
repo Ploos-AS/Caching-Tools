@@ -18,6 +18,8 @@ fieldSection.innerHTML = `
   </form>
   <p id="field-live-status" aria-live="polite">Live navigation stopped.</p>
   <pre id="field-navigation-result" class="result">Choose a saved target.</pre>
+  <h3>Session statistics</h3>
+  <pre id="field-session-stats" class="result">No session statistics yet.</pre>
   <h3>Session breadcrumbs</h3>
   <p>Breadcrumbs exist only in browser memory for the current live session and are never written to <code>/data</code>. Export is explicit and downloads a GPX 1.1 track locally.</p>
   <button type="button" id="field-breadcrumb-export">Export session GPX</button>
@@ -31,6 +33,7 @@ else document.querySelector('main')?.append(fieldSection);
 const fieldForm = fieldSection.querySelector('#field-navigation-form');
 const fieldResult = fieldSection.querySelector('#field-navigation-result');
 const fieldLiveStatus = fieldSection.querySelector('#field-live-status');
+const fieldSessionStats = fieldSection.querySelector('#field-session-stats');
 const fieldBreadcrumbs = fieldSection.querySelector('#field-breadcrumbs');
 const fieldLiveStart = fieldSection.querySelector('#field-live-start');
 const fieldLiveStop = fieldSection.querySelector('#field-live-stop');
@@ -104,7 +107,72 @@ async function navigateField(latitude, longitude) {
   return postJSON('/api/navigation/field', fieldPayload(latitude, longitude));
 }
 
+function breadcrumbDistanceMeters(a, b) {
+  const radius = 6371008.8;
+  const radians = value => value * Math.PI / 180;
+  const lat1 = radians(a.latitude), lat2 = radians(b.latitude);
+  const dLat = lat2 - lat1;
+  const dLon = radians(b.longitude - a.longitude);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * radius * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+function sessionStatistics() {
+  if (!liveBreadcrumbs.length) return null;
+  let distanceM = 0;
+  let movingTimeS = 0;
+  let maxSpeedMPS = 0;
+  let acceptedSpeedSamples = 0;
+  for (let index = 1; index < liveBreadcrumbs.length; index += 1) {
+    const previous = liveBreadcrumbs[index - 1];
+    const current = liveBreadcrumbs[index];
+    const segmentDistance = breadcrumbDistanceMeters(previous, current);
+    distanceM += segmentDistance;
+    const previousTime = Date.parse(previous.time);
+    const currentTime = Date.parse(current.time);
+    const deltaS = (currentTime - previousTime) / 1000;
+    if (!Number.isFinite(deltaS) || deltaS <= 0) continue;
+    movingTimeS += deltaS;
+    const speedMPS = segmentDistance / deltaS;
+    if (Number.isFinite(speedMPS) && speedMPS >= 0 && speedMPS <= 100) {
+      maxSpeedMPS = Math.max(maxSpeedMPS, speedMPS);
+      acceptedSpeedSamples += 1;
+    }
+  }
+  const firstTime = Date.parse(liveBreadcrumbs[0].time);
+  const lastTime = Date.parse(liveBreadcrumbs[liveBreadcrumbs.length - 1].time);
+  const durationS = Number.isFinite(firstTime) && Number.isFinite(lastTime) && lastTime >= firstTime ? (lastTime - firstTime) / 1000 : 0;
+  const averageSpeedMPS = movingTimeS > 0 ? distanceM / movingTimeS : 0;
+  return {distanceM, durationS, movingTimeS, averageSpeedMPS, maxSpeedMPS, acceptedSpeedSamples};
+}
+
+function formatDuration(seconds) {
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  return `${hours.toString().padStart(2,'0')}:${minutes.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+}
+
+function renderSessionStatistics() {
+  const stats = sessionStatistics();
+  if (!stats) {
+    fieldSessionStats.textContent = 'No session statistics yet.';
+    return;
+  }
+  fieldSessionStats.textContent = [
+    `Distance: ${(stats.distanceM / 1000).toFixed(3)} km (${stats.distanceM.toFixed(1)} m)`,
+    `Session duration: ${formatDuration(stats.durationS)}`,
+    `Timed movement: ${formatDuration(stats.movingTimeS)}`,
+    `Average speed: ${(stats.averageSpeedMPS * 3.6).toFixed(1)} km/h`,
+    `Maximum accepted segment speed: ${(stats.maxSpeedMPS * 3.6).toFixed(1)} km/h`,
+    `Speed samples: ${stats.acceptedSpeedSamples}`,
+    'Speed samples above 360 km/h and non-positive/invalid time deltas are ignored for maximum-speed statistics.'
+  ].join('\n');
+}
+
 function renderBreadcrumbs() {
+  renderSessionStatistics();
   if (!liveBreadcrumbs.length) {
     fieldBreadcrumbs.textContent = 'No breadcrumb points.';
     return;
@@ -264,4 +332,4 @@ document.addEventListener('caching-tools:map-select', event => {
 
 window.addEventListener('pagehide', () => { if (liveWatchID !== null) stopLiveNavigation(); });
 loadFieldTargets().catch(error => { fieldResult.textContent = `Error: ${error.message}`; });
-const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.26';
+const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.27';
