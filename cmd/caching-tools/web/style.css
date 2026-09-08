@@ -44,6 +44,18 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .map-overlay-position { fill: #edf3e8; stroke: #88c6db; stroke-width: 4; vector-effect: non-scaling-stroke; }
 .map-overlay-guidance { stroke: #edf3e8; stroke-width: 2; stroke-dasharray: 8 5; vector-effect: non-scaling-stroke; }
 .map-overlay-arrival { fill: rgba(212,185,111,.08); stroke: #d4b96f; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.map-overlay-cross-track { stroke: #edf3e8; stroke-width: 3; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.map-overlay-forward { stroke: #88c6db; stroke-width: 4; vector-effect: non-scaling-stroke; }
+.map-overlay-nearest { fill: #10150f; stroke: #edf3e8; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.map-overlay-next { fill: #d4b96f; stroke: #10150f; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.map-overlay-next-arrival { fill: rgba(212,185,111,.05); stroke: #d4b96f; stroke-width: 1.5; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.map-overlay-status-label { fill: #edf3e8; font-size: 12px; font-weight: 800; paint-order: stroke; stroke: #10150f; stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.map-overlay-status-off-route { stroke: #ef9a83; }
+.map-overlay-status-arrived { stroke: #a8d58d; }
+.map-overlay-status-next-point-arrival { stroke: #d4b96f; }
+.map-overlay-status-label.map-overlay-status-off-route { fill: #ef9a83; }
+.map-overlay-status-label.map-overlay-status-arrived { fill: #a8d58d; }
+.map-overlay-status-label.map-overlay-status-next-point-arrival { fill: #d4b96f; }
 .map-path-editor { min-height: 0; }
 .map-edit-point { fill: #edf3e8; stroke: #10150f; stroke-width: 2; vector-effect: non-scaling-stroke; cursor: move; }
 .map-edit-point:hover, .map-edit-point:focus { stroke: #a8d58d; stroke-width: 4; outline: none; }
