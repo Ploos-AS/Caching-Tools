@@ -6,12 +6,14 @@ overlayControls.innerHTML = `
   <label><input type="checkbox" id="map-overlay-rings"> Waypoint radius</label>
   <label>Radius (m)<input type="number" id="map-overlay-radius" min="1" step="1" value="100"></label>
   <label><input type="checkbox" id="map-overlay-guidance" checked> Position / target line</label>
+  <label><input type="checkbox" id="map-overlay-path-guidance" checked> Route / track guidance</label>
   <button type="button" id="map-overlay-refresh">Refresh overlays</button>`;
 const mapFrame = document.querySelector('#local-map')?.closest('.map-frame');
 if (mapFrame) mapFrame.insertAdjacentElement('beforebegin', overlayControls);
 
 let overlayWaypoints = [];
 let overlaySelection = null;
+let overlayNavigationResult = null;
 
 function overlayLayer() {
   const svg = window.cachingToolsMap?.svg;
@@ -58,6 +60,50 @@ function selectedWaypoint() {
   return overlayWaypoints.find(item => item.id === overlaySelection.id) || null;
 }
 
+function responsePoint(point) {
+  if (!point) return null;
+  const latitude = Number(point.latitude ?? point.Latitude ?? point.lat?.decimal);
+  const longitude = Number(point.longitude ?? point.Longitude ?? point.lon?.decimal);
+  return Number.isFinite(latitude) && Number.isFinite(longitude) ? {latitude, longitude} : null;
+}
+
+function appendPathGuidance(layer, project, result) {
+  if (!result || result.kind === 'waypoint' || !result.progress) return;
+  const from = responsePoint(result.from);
+  const nearest = responsePoint(result.target);
+  const next = responsePoint(result.progress.next_point);
+  if (!from || !nearest || !next) return;
+
+  const here = project(from.latitude, from.longitude);
+  const onPath = project(nearest.latitude, nearest.longitude);
+  const nextPoint = project(next.latitude, next.longitude);
+  const status = String(result.guidance?.status || 'on-route');
+
+  layer.append(overlaySVG('line', {
+    x1: here.x, y1: here.y, x2: onPath.x, y2: onPath.y,
+    class: `map-overlay-cross-track map-overlay-status-${status}`
+  }));
+  layer.append(overlaySVG('circle', {cx:onPath.x, cy:onPath.y, r:7, class:'map-overlay-nearest'}));
+  layer.append(overlaySVG('line', {
+    x1:onPath.x, y1:onPath.y, x2:nextPoint.x, y2:nextPoint.y,
+    class:'map-overlay-forward'
+  }));
+  layer.append(overlaySVG('circle', {cx:nextPoint.x, cy:nextPoint.y, r:6, class:'map-overlay-next'}));
+
+  const nextRing = projectedRadiusMeters(project, next.latitude, next.longitude, Number(result.guidance?.arrival_radius_m) || 20);
+  layer.append(overlaySVG('ellipse', {
+    cx:nextPoint.x, cy:nextPoint.y, rx:nextRing.rx, ry:nextRing.ry,
+    class:'map-overlay-next-arrival'
+  }));
+
+  const label = overlaySVG('text', {x:onPath.x + 10, y:onPath.y + 18, class:`map-overlay-status-label map-overlay-status-${status}`});
+  const crossTrack = Number(result.cross_track_m);
+  const remaining = Number(result.progress.remaining_m);
+  const bearing = Number(result.progress.forward_bearing_deg);
+  label.textContent = `${status} · ${Number.isFinite(crossTrack) ? crossTrack.toFixed(0) : '?'} m off · ${Number.isFinite(remaining) ? (remaining / 1000).toFixed(2) : '?'} km left · ${Number.isFinite(bearing) ? bearing.toFixed(0) : '?'}°`;
+  layer.append(label);
+}
+
 function renderMapOverlays() {
   const project = window.cachingToolsMap?.project;
   const layer = overlayLayer();
@@ -96,6 +142,8 @@ function renderMapOverlays() {
       }
     }
   }
+
+  if (document.querySelector('#map-overlay-path-guidance')?.checked) appendPathGuidance(layer, project, overlayNavigationResult);
 }
 
 async function refreshMapOverlays() {
@@ -108,12 +156,23 @@ async function refreshMapOverlays() {
   }
 }
 
+if (typeof navigateField === 'function') {
+  const navigateFieldWithoutOverlay = navigateField;
+  navigateField = async function cachingToolsNavigateFieldWithOverlay(latitude, longitude) {
+    const result = await navigateFieldWithoutOverlay(latitude, longitude);
+    overlayNavigationResult = result;
+    renderMapOverlays();
+    return result;
+  };
+}
+
 document.addEventListener('caching-tools:map-rendered', () => { void refreshMapOverlays(); });
 document.addEventListener('caching-tools:map-select', event => {
   overlaySelection = event.detail || null;
+  if (!overlaySelection || (overlayNavigationResult && overlayNavigationResult.id !== overlaySelection.id)) overlayNavigationResult = null;
   renderMapOverlays();
 });
-for (const id of ['map-overlay-labels','map-overlay-rings','map-overlay-radius','map-overlay-guidance']) {
+for (const id of ['map-overlay-labels','map-overlay-rings','map-overlay-radius','map-overlay-guidance','map-overlay-path-guidance']) {
   document.querySelector(`#${id}`)?.addEventListener('change', renderMapOverlays);
 }
 document.querySelector('#map-overlay-refresh')?.addEventListener('click', () => void refreshMapOverlays());
