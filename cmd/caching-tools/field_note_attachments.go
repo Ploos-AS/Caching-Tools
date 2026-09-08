@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
 	"os"
@@ -210,8 +211,57 @@ func (s *fieldNoteAttachmentStore) delete(noteID, id string) error {
 func (s *fieldNoteAttachmentStore) deleteForNote(noteID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := os.RemoveAll(s.noteDir(noteID)); err != nil {
-		return err
-	}
-	return nil
+	return os.RemoveAll(s.noteDir(noteID))
+}
+
+func fieldNoteExists(store *fieldNoteStore, id string) error {
+	_, err := store.get(id)
+	return err
+}
+
+func registerFieldNoteAttachmentRoutes(mux *http.ServeMux, notes *fieldNoteStore, attachments *fieldNoteAttachmentStore) {
+	mux.HandleFunc("GET /api/field-notes/{id}/attachments", func(w http.ResponseWriter, r *http.Request) {
+		noteID := r.PathValue("id")
+		if err := fieldNoteExists(notes, noteID); errors.Is(err, os.ErrNotExist) { writeError(w, 404, errors.New("field note not found")); return } else if err != nil { writeError(w, 500, err); return }
+		items, err := attachments.list(noteID)
+		if err != nil { writeError(w, 500, err); return }
+		writeJSON(w, 200, items)
+	})
+
+	mux.HandleFunc("POST /api/field-notes/{id}/attachments", func(w http.ResponseWriter, r *http.Request) {
+		noteID := r.PathValue("id")
+		if err := fieldNoteExists(notes, noteID); errors.Is(err, os.ErrNotExist) { writeError(w, 404, errors.New("field note not found")); return } else if err != nil { writeError(w, 500, err); return }
+		r.Body = http.MaxBytesReader(w, r.Body, fieldNoteAttachmentMaxBytes+1024*1024)
+		if err := r.ParseMultipartForm(fieldNoteAttachmentMaxBytes + 1024*1024); err != nil { writeError(w, 400, errors.New("invalid attachment upload: "+err.Error())); return }
+		file, header, err := r.FormFile("file")
+		if err != nil { writeError(w, 400, errors.New("multipart field file is required")); return }
+		defer file.Close()
+		data, err := readAttachment(file)
+		if err != nil { writeError(w, 400, err); return }
+		item, err := attachments.create(noteID, header.Filename, data)
+		if err != nil { writeError(w, 400, err); return }
+		writeJSON(w, 201, item)
+	})
+
+	mux.HandleFunc("GET /api/field-notes/{id}/attachments/{attachment_id}", func(w http.ResponseWriter, r *http.Request) {
+		noteID := r.PathValue("id")
+		if err := fieldNoteExists(notes, noteID); errors.Is(err, os.ErrNotExist) { writeError(w, 404, errors.New("field note not found")); return } else if err != nil { writeError(w, 500, err); return }
+		item, data, err := attachments.get(noteID, r.PathValue("attachment_id"))
+		if errors.Is(err, os.ErrNotExist) { writeError(w, 404, errors.New("attachment not found")); return }
+		if err != nil { writeError(w, 500, err); return }
+		w.Header().Set("Content-Type", item.ContentType)
+		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": item.Filename}))
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.WriteHeader(200)
+		_, _ = w.Write(data)
+	})
+
+	mux.HandleFunc("DELETE /api/field-notes/{id}/attachments/{attachment_id}", func(w http.ResponseWriter, r *http.Request) {
+		noteID := r.PathValue("id")
+		if err := fieldNoteExists(notes, noteID); errors.Is(err, os.ErrNotExist) { writeError(w, 404, errors.New("field note not found")); return } else if err != nil { writeError(w, 500, err); return }
+		err := attachments.delete(noteID, r.PathValue("attachment_id"))
+		if errors.Is(err, os.ErrNotExist) { writeError(w, 404, errors.New("attachment not found")); return }
+		if err != nil { writeError(w, 500, err); return }
+		w.WriteHeader(204)
+	})
 }
