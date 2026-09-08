@@ -274,4 +274,6 @@ func registerFieldNoteAttachmentRoutes(mux *http.ServeMux, notes *fieldNoteStore
 		if err != nil { writeError(w, 500, err); return }
 		w.WriteHeader(204)
 	})
+
+	registerFieldNoteArchiveRoutes(mux, notes, attachments)
 }
