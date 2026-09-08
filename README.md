@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.30 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.31 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -39,6 +39,10 @@ M1.30 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - promoted markers preserve coordinate, marker type, note and original marker timestamp provenance
 - duplicate promotion of the same in-memory marker is prevented during the current page session
 - promoted waypoints immediately refresh the waypoint list, navigation targets and local map
+- persistent local field notes/logbook under `/data/field-notes.json`
+- field-note title, body, status, type and occurrence timestamp
+- optional soft links from field notes to saved waypoints and mystery workspaces
+- field-note create/edit/delete UI and CRUD API
 - explicit browser-side export of the current breadcrumb session as a GPX 1.1 track
 - manual markers export as standard GPX 1.1 waypoints
 - paused/resumed recording exports as separate GPX `<trkseg>` elements
@@ -89,7 +93,7 @@ M1.30 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_30.md](docs/M1_30.md).
+See [docs/M1_31.md](docs/M1_31.md).
 
 ## Run with Go
 
@@ -109,7 +113,7 @@ docker compose up --build
 
 Then open <http://localhost:8080>.
 
-The compose volume mounted at `/data` keeps saved waypoints, routes, tracks and mystery workspaces across container recreation.
+The compose volume mounted at `/data` keeps saved waypoints, routes, tracks, field notes and mystery workspaces across container recreation.
 
 ## Product direction
 
@@ -151,7 +155,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.28: breadcrumb minimum-distance and accuracy filters plus optional GPX-export simplification
 - M1.29: pause/resume breadcrumb recording, segment-aware session statistics/GPX and manual field markers
 - M1.30: explicit promotion of manual field-session markers into persistent local waypoints
-- Next: persistent field notes/logbook linked to waypoints, or additional well-defined CRS families
+- M1.31: persistent local field notes/logbook with optional waypoint and mystery-workspace links
+- Next: field-note search/filter/export, or additional well-defined CRS families
 
 ## License
 
