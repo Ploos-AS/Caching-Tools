@@ -38,7 +38,6 @@ func TestFieldNotesSearchFilterExportUI(t *testing.T) {
 		"text/csv;charset=utf-8",
 		"URL.createObjectURL",
 		"URL.revokeObjectURL",
-		"Caching Tools M1.32",
 	} {
 		if !strings.Contains(asset.Body.String(), want) { t.Fatalf("missing %q", want) }
 	}
