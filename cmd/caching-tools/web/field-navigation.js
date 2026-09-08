@@ -19,7 +19,8 @@ fieldSection.innerHTML = `
   <p id="field-live-status" aria-live="polite">Live navigation stopped.</p>
   <pre id="field-navigation-result" class="result">Choose a saved target.</pre>
   <h3>Session breadcrumbs</h3>
-  <p>Breadcrumbs exist only in browser memory for the current live session and are never written to <code>/data</code>.</p>
+  <p>Breadcrumbs exist only in browser memory for the current live session and are never written to <code>/data</code>. Export is explicit and downloads a GPX 1.1 track locally.</p>
+  <button type="button" id="field-breadcrumb-export">Export session GPX</button>
   <button type="button" id="field-breadcrumb-clear">Clear breadcrumbs</button>
   <pre id="field-breadcrumbs" class="result">No breadcrumb points.</pre>`;
 
@@ -128,6 +129,38 @@ function addBreadcrumb(position) {
   renderBreadcrumbs();
 }
 
+function escapeXML(value) {
+  return String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[character]));
+}
+
+function breadcrumbGPX() {
+  if (!liveBreadcrumbs.length) throw new Error('No breadcrumb points to export.');
+  const target = fieldForm.elements['target-id'].selectedOptions[0]?.textContent || 'Live navigation session';
+  const points = liveBreadcrumbs.map(item =>
+    `      <trkpt lat="${item.latitude.toFixed(7)}" lon="${item.longitude.toFixed(7)}"><time>${escapeXML(item.time)}</time></trkpt>`
+  ).join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Caching Tools" xmlns="http://www.topografix.com/GPX/1/1">\n  <trk>\n    <name>${escapeXML(`Caching Tools session - ${target}`)}</name>\n    <trkseg>\n${points}\n    </trkseg>\n  </trk>\n</gpx>\n`;
+}
+
+function exportBreadcrumbGPX() {
+  try {
+    const data = breadcrumbGPX();
+    const blob = new Blob([data], {type:'application/gpx+xml;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\..*$/,'').replace('T','-');
+    link.href = url;
+    link.download = `caching-tools-session-${stamp}.gpx`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    fieldLiveStatus.textContent = `Exported ${liveBreadcrumbs.length} breadcrumb point${liveBreadcrumbs.length === 1 ? '' : 's'} as GPX 1.1.`;
+  } catch (error) {
+    fieldLiveStatus.textContent = `Session export error: ${error.message}`;
+  }
+}
+
 async function processLivePosition(position, generation) {
   if (generation !== liveGeneration || liveWatchID === null) return;
   livePendingPosition = position;
@@ -214,6 +247,7 @@ fieldSection.querySelector('#field-use-location').addEventListener('click', () =
 
 fieldLiveStart.addEventListener('click', startLiveNavigation);
 fieldLiveStop.addEventListener('click', () => stopLiveNavigation());
+fieldSection.querySelector('#field-breadcrumb-export').addEventListener('click', exportBreadcrumbGPX);
 fieldSection.querySelector('#field-breadcrumb-clear').addEventListener('click', () => {
   liveBreadcrumbs = [];
   renderBreadcrumbs();
@@ -230,4 +264,4 @@ document.addEventListener('caching-tools:map-select', event => {
 
 window.addEventListener('pagehide', () => { if (liveWatchID !== null) stopLiveNavigation(); });
 loadFieldTargets().catch(error => { fieldResult.textContent = `Error: ${error.message}`; });
-const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.25';
+const fieldFooter = document.querySelector('footer'); if (fieldFooter) fieldFooter.textContent = 'Caching Tools M1.26';
