@@ -18,6 +18,7 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 		"Field navigation","/api/navigation/field","/api/waypoints","/api/paths","cross_track_m","progress_percent","remaining_m","next_point_distance_m","forward_bearing_deg",
 		"off-route-threshold","arrival-radius","guidance.status","off_route_threshold_m","arrival_radius_m","navigator.geolocation","caching-tools:map-select",
 		"Start live navigation","Stop live navigation","watchPosition","clearWatch","processLivePosition","livePendingPosition","liveRequestInFlight","Session breadcrumbs","field-breadcrumb-clear","liveBreadcrumbs","never written to <code>/data</code>","pagehide",
-		"Export session GPX","field-breadcrumb-export","breadcrumbGPX","exportBreadcrumbGPX","escapeXML","<gpx version=\"1.1\"","<trkseg>","<trkpt lat=","application/gpx+xml","new Blob","URL.createObjectURL","URL.revokeObjectURL","caching-tools-session-","No breadcrumb points to export","Caching Tools M1.26",
+		"Export session GPX","field-breadcrumb-export","breadcrumbGPX","exportBreadcrumbGPX","escapeXML","<gpx version=\"1.1\"","<trkseg>","<trkpt lat=","application/gpx+xml","new Blob","URL.createObjectURL","URL.revokeObjectURL","caching-tools-session-","No breadcrumb points to export",
+		"Session statistics","field-session-stats","sessionStatistics","breadcrumbDistanceMeters","renderSessionStatistics","Average speed","Maximum accepted segment speed","Speed samples above 360 km/h","Caching Tools M1.27",
 	} { if !strings.Contains(asset.Body.String(),want){t.Fatalf("missing %q",want)} }
 }
