@@ -33,7 +33,8 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 	if session.Code!=http.StatusOK{t.Fatalf("session asset status=%d",session.Code)}
 	for _,want:=range []string{
 		"Pause breadcrumb recording","Resume breadcrumb recording","Breadcrumb recording paused. Live navigation continues.","recordingSegmentID","addBreadcrumbWithPause","sessionStatisticsWithPauseSegments",
-		"Marker type","cache","trailhead","note","custom","Add marker at current position","field-marker-add","liveMarkers","markerGPX","<wpt lat=","recordingSegmentsForExport","breadcrumbGPXWithMarkersAndSegments","Caching Tools M1.29",
+		"Marker type","cache","trailhead","note","custom","Add marker at current position","field-marker-add","liveMarkers","markerGPX","<wpt lat=","recordingSegmentsForExport","breadcrumbGPXWithMarkersAndSegments",
+		"Promote marker","Waypoint name","field-marker-promote-select","field-marker-waypoint-name","field-marker-promote","promoteManualMarker","suggestedWaypointName","promotedWaypointID","postJSON('/api/waypoints'","loadWaypoints()","loadFieldTargets()","refreshLocalMap","Promoted from live field session marker","Caching Tools M1.30",
 	} { if !strings.Contains(session.Body.String(),want){t.Fatalf("missing %q from field-session.js",want)} }
 
 	link:=httptest.NewRecorder(); h.ServeHTTP(link,httptest.NewRequest(http.MethodGet,"/map-link.js",nil))
