@@ -65,6 +65,10 @@ func sanitizeAttachmentFilename(name string) (string, error) {
 	return name, nil
 }
 
+func safeAttachmentID(id string) bool {
+	return strings.HasPrefix(id, "att-") && filepath.Base(id) == id && !strings.ContainsAny(id, `/\\`) && len(id) <= 80
+}
+
 func detectAllowedAttachmentType(data []byte) (string, error) {
 	contentType := http.DetectContentType(data)
 	if allowedFieldNoteAttachmentTypes[contentType] {
@@ -157,7 +161,7 @@ func (s *fieldNoteAttachmentStore) list(noteID string) ([]fieldNoteAttachment, e
 		if err := json.Unmarshal(data, &item); err != nil {
 			return nil, fmt.Errorf("read attachment metadata: %w", err)
 		}
-		if item.NoteID == noteID {
+		if item.NoteID == noteID && safeAttachmentID(item.ID) {
 			items = append(items, item)
 		}
 	}
@@ -166,6 +170,9 @@ func (s *fieldNoteAttachmentStore) list(noteID string) ([]fieldNoteAttachment, e
 }
 
 func (s *fieldNoteAttachmentStore) get(noteID, id string) (fieldNoteAttachment, []byte, error) {
+	if !safeAttachmentID(id) {
+		return fieldNoteAttachment{}, nil, os.ErrNotExist
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	metaPath := filepath.Join(s.noteDir(noteID), id+".json")
@@ -191,6 +198,9 @@ func (s *fieldNoteAttachmentStore) get(noteID, id string) (fieldNoteAttachment, 
 }
 
 func (s *fieldNoteAttachmentStore) delete(noteID, id string) error {
+	if !safeAttachmentID(id) {
+		return os.ErrNotExist
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	metaPath := filepath.Join(s.noteDir(noteID), id+".json")
