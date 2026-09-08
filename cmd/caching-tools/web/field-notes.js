@@ -16,6 +16,18 @@ fieldNotesSection.innerHTML = `
     <button type="submit" id="field-note-save">Save field note</button>
     <button type="button" id="field-note-cancel" hidden>Cancel edit</button>
   </form>
+  <h3>Search / filter</h3>
+  <div id="field-note-filters" class="form-grid nav-grid">
+    <label>Search<input id="field-note-search" placeholder="title, note, status, type"></label>
+    <label>Status<select id="field-note-filter-status"><option value="">All statuses</option></select></label>
+    <label>Type<select id="field-note-filter-type"><option value="">All types</option></select></label>
+    <label>Waypoint<select id="field-note-filter-waypoint"><option value="">All waypoints</option></select></label>
+    <label>Workspace<select id="field-note-filter-workspace"><option value="">All workspaces</option></select></label>
+    <button type="button" id="field-note-filter-clear">Clear filters</button>
+    <button type="button" id="field-note-export-json">Export filtered JSON</button>
+    <button type="button" id="field-note-export-csv">Export filtered CSV</button>
+  </div>
+  <p id="field-note-filter-status-text" aria-live="polite"></p>
   <p id="field-note-status" aria-live="polite"></p>
   <div id="field-note-list" class="result">Loading field notes...</div>`;
 
@@ -27,6 +39,12 @@ const fieldNoteForm = fieldNotesSection.querySelector('#field-note-form');
 const fieldNoteList = fieldNotesSection.querySelector('#field-note-list');
 const fieldNoteStatus = fieldNotesSection.querySelector('#field-note-status');
 const fieldNoteCancel = fieldNotesSection.querySelector('#field-note-cancel');
+const fieldNoteSearch = fieldNotesSection.querySelector('#field-note-search');
+const fieldNoteFilterStatus = fieldNotesSection.querySelector('#field-note-filter-status');
+const fieldNoteFilterType = fieldNotesSection.querySelector('#field-note-filter-type');
+const fieldNoteFilterWaypoint = fieldNotesSection.querySelector('#field-note-filter-waypoint');
+const fieldNoteFilterWorkspace = fieldNotesSection.querySelector('#field-note-filter-workspace');
+const fieldNoteFilterStatusText = fieldNotesSection.querySelector('#field-note-filter-status-text');
 let fieldNoteCache = [];
 
 function localDateTimeToISO(value) {
@@ -68,8 +86,17 @@ async function loadFieldNoteReferences() {
   const selectedWorkspace = workspaceSelect.value;
   waypointSelect.replaceChildren(new Option('None',''));
   workspaceSelect.replaceChildren(new Option('None',''));
-  for (const item of waypoints) waypointSelect.append(new Option(item.name, item.id));
-  for (const item of workspaces) workspaceSelect.append(new Option(`${item.code ? item.code + ' · ' : ''}${item.title}`, item.id));
+  fieldNoteFilterWaypoint.replaceChildren(new Option('All waypoints',''));
+  fieldNoteFilterWorkspace.replaceChildren(new Option('All workspaces',''));
+  for (const item of waypoints) {
+    waypointSelect.append(new Option(item.name, item.id));
+    fieldNoteFilterWaypoint.append(new Option(item.name, item.id));
+  }
+  for (const item of workspaces) {
+    const label = `${item.code ? item.code + ' · ' : ''}${item.title}`;
+    workspaceSelect.append(new Option(label, item.id));
+    fieldNoteFilterWorkspace.append(new Option(label, item.id));
+  }
   waypointSelect.value = selectedWaypoint;
   workspaceSelect.value = selectedWorkspace;
 }
@@ -82,11 +109,43 @@ function resetFieldNoteForm() {
   fieldNotesSection.querySelector('#field-note-save').textContent = 'Save field note';
 }
 
+function noteFilterValues(items, key) {
+  return [...new Set(items.map(item => String(item[key] || '').trim()).filter(Boolean))].sort((a,b) => a.localeCompare(b));
+}
+
+function refreshFieldNoteFacetOptions() {
+  const selectedStatus = fieldNoteFilterStatus.value;
+  const selectedType = fieldNoteFilterType.value;
+  fieldNoteFilterStatus.replaceChildren(new Option('All statuses',''));
+  fieldNoteFilterType.replaceChildren(new Option('All types',''));
+  for (const value of noteFilterValues(fieldNoteCache, 'status')) fieldNoteFilterStatus.append(new Option(value, value));
+  for (const value of noteFilterValues(fieldNoteCache, 'type')) fieldNoteFilterType.append(new Option(value, value));
+  fieldNoteFilterStatus.value = selectedStatus;
+  fieldNoteFilterType.value = selectedType;
+}
+
+function filteredFieldNotes() {
+  const query = fieldNoteSearch.value.trim().toLowerCase();
+  const status = fieldNoteFilterStatus.value;
+  const type = fieldNoteFilterType.value;
+  const waypointID = fieldNoteFilterWaypoint.value;
+  const workspaceID = fieldNoteFilterWorkspace.value;
+  return fieldNoteCache.filter(item => {
+    if (status && item.status !== status) return false;
+    if (type && item.type !== type) return false;
+    if (waypointID && item.waypoint_id !== waypointID) return false;
+    if (workspaceID && item.workspace_id !== workspaceID) return false;
+    if (!query) return true;
+    const haystack = [item.title, item.body, item.status, item.type, item.waypoint_id, item.workspace_id, item.occurred_at].join('\n').toLowerCase();
+    return haystack.includes(query);
+  });
+}
+
 function renderFieldNotes(items) {
-  fieldNoteCache = items;
   fieldNoteList.replaceChildren();
+  fieldNoteFilterStatusText.textContent = `Showing ${items.length} of ${fieldNoteCache.length} field note${fieldNoteCache.length === 1 ? '' : 's'}.`;
   if (!items.length) {
-    fieldNoteList.textContent = 'No field notes.';
+    fieldNoteList.textContent = 'No field notes match the current filters.';
     return;
   }
   for (const item of items) {
@@ -110,9 +169,16 @@ function renderFieldNotes(items) {
   }
 }
 
+function applyFieldNoteFilters() {
+  renderFieldNotes(filteredFieldNotes());
+}
+
 async function loadFieldNotes() {
-  try { renderFieldNotes(await requestJSON('/api/field-notes')); }
-  catch (error) { fieldNoteList.textContent = `Error: ${error.message}`; }
+  try {
+    fieldNoteCache = await requestJSON('/api/field-notes');
+    refreshFieldNoteFacetOptions();
+    applyFieldNoteFilters();
+  } catch (error) { fieldNoteList.textContent = `Error: ${error.message}`; }
 }
 
 function editFieldNote(id) {
@@ -138,6 +204,43 @@ async function deleteFieldNote(id) {
   } catch (error) { fieldNoteStatus.textContent = `Error: ${error.message}`; }
 }
 
+function csvCell(value) {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function fieldNotesCSV(items) {
+  const columns = ['id','occurred_at','title','status','type','body','waypoint_id','workspace_id','created_at','updated_at'];
+  const rows = [columns.join(',')];
+  for (const item of items) rows.push(columns.map(column => csvCell(item[column] || '')).join(','));
+  return rows.join('\r\n') + '\r\n';
+}
+
+function downloadFieldNoteExport(data, type, suffix) {
+  const blob = new Blob([data], {type});
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\..*$/,'').replace('T','-');
+  link.href = url;
+  link.download = `caching-tools-field-notes-${stamp}.${suffix}`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportFilteredFieldNotesJSON() {
+  const items = filteredFieldNotes();
+  downloadFieldNoteExport(JSON.stringify({format:'caching-tools-field-notes', version:1, exported_at:new Date().toISOString(), notes:items}, null, 2) + '\n', 'application/json;charset=utf-8', 'json');
+  fieldNoteStatus.textContent = `Exported ${items.length} filtered field note${items.length === 1 ? '' : 's'} as JSON.`;
+}
+
+function exportFilteredFieldNotesCSV() {
+  const items = filteredFieldNotes();
+  downloadFieldNoteExport(fieldNotesCSV(items), 'text/csv;charset=utf-8', 'csv');
+  fieldNoteStatus.textContent = `Exported ${items.length} filtered field note${items.length === 1 ? '' : 's'} as CSV.`;
+}
+
 fieldNoteForm.addEventListener('submit', async event => {
   event.preventDefault();
   const id = fieldNoteForm.elements['note-id'].value;
@@ -155,8 +258,21 @@ fieldNoteForm.addEventListener('submit', async event => {
   } catch (error) { fieldNoteStatus.textContent = `Error: ${error.message}`; }
 });
 
+for (const control of [fieldNoteSearch, fieldNoteFilterStatus, fieldNoteFilterType, fieldNoteFilterWaypoint, fieldNoteFilterWorkspace]) {
+  control.addEventListener(control === fieldNoteSearch ? 'input' : 'change', applyFieldNoteFilters);
+}
+fieldNotesSection.querySelector('#field-note-filter-clear').addEventListener('click', () => {
+  fieldNoteSearch.value = '';
+  fieldNoteFilterStatus.value = '';
+  fieldNoteFilterType.value = '';
+  fieldNoteFilterWaypoint.value = '';
+  fieldNoteFilterWorkspace.value = '';
+  applyFieldNoteFilters();
+});
+fieldNotesSection.querySelector('#field-note-export-json').addEventListener('click', exportFilteredFieldNotesJSON);
+fieldNotesSection.querySelector('#field-note-export-csv').addEventListener('click', exportFilteredFieldNotesCSV);
 fieldNoteCancel.addEventListener('click', resetFieldNoteForm);
 Promise.all([loadFieldNoteReferences(), loadFieldNotes()]).catch(error => { fieldNoteStatus.textContent = `Error: ${error.message}`; });
 window.refreshFieldNotes = loadFieldNotes;
 window.refreshFieldNoteReferences = loadFieldNoteReferences;
-const fieldNoteFooter = document.querySelector('footer'); if (fieldNoteFooter) fieldNoteFooter.textContent = 'Caching Tools M1.31';
+const fieldNoteFooter = document.querySelector('footer'); if (fieldNoteFooter) fieldNoteFooter.textContent = 'Caching Tools M1.32';
