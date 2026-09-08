@@ -15,9 +15,17 @@ document.addEventListener('caching-tools:map-select', (event) => {
 });
 
 window.addEventListener('load', () => {
-  if (document.querySelector('script[data-map-editor]')) return;
-  const script = document.createElement('script');
-  script.src = '/map-editor.js';
-  script.dataset.mapEditor = 'true';
-  document.body.append(script);
+  if (!document.querySelector('script[data-field-quality]')) {
+    const quality = document.createElement('script');
+    quality.src = '/field-quality.js';
+    quality.dataset.fieldQuality = 'true';
+    document.body.append(quality);
+  }
+
+  if (!document.querySelector('script[data-map-editor]')) {
+    const script = document.createElement('script');
+    script.src = '/map-editor.js';
+    script.dataset.mapEditor = 'true';
+    document.body.append(script);
+  }
 });
