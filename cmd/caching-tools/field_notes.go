@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+const (
+	fieldNoteBundleFormat  = "caching-tools-field-notes"
+	fieldNoteBundleVersion = 1
+)
+
 type fieldNote struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
@@ -33,6 +38,18 @@ type fieldNoteRequest struct {
 	WaypointID  string `json:"waypoint_id,omitempty"`
 	WorkspaceID string `json:"workspace_id,omitempty"`
 	OccurredAt  string `json:"occurred_at,omitempty"`
+}
+
+type fieldNoteBundle struct {
+	Format     string      `json:"format"`
+	Version    int         `json:"version"`
+	ExportedAt string      `json:"exported_at,omitempty"`
+	Notes      []fieldNote `json:"notes"`
+}
+
+type fieldNoteImportResult struct {
+	Imported int         `json:"imported"`
+	Notes    []fieldNote `json:"notes"`
 }
 
 type fieldNoteStore struct {
@@ -98,6 +115,57 @@ func (s *fieldNoteStore) create(req fieldNoteRequest) (fieldNote, error) {
 		return fieldNote{}, err
 	}
 	return item, nil
+}
+
+func (s *fieldNoteStore) importMany(requests []fieldNoteRequest) ([]fieldNote, error) {
+	validated := make([]fieldNoteRequest, len(requests))
+	for i, req := range requests {
+		normalized, err := normalizeFieldNoteRequest(req)
+		if err != nil {
+			return nil, fmt.Errorf("note %d: %w", i+1, err)
+		}
+		validated[i] = normalized
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	items, err := s.loadLocked()
+	if err != nil {
+		return nil, err
+	}
+	base := time.Now().UnixNano()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	created := make([]fieldNote, 0, len(validated))
+	for i, req := range validated {
+		item := fieldNote{
+			ID: fmt.Sprintf("note-%x", base+int64(i)), Title: req.Title, Body: req.Body,
+			Status: req.Status, Type: req.Type, WaypointID: req.WaypointID, WorkspaceID: req.WorkspaceID,
+			OccurredAt: req.OccurredAt, CreatedAt: now, UpdatedAt: now,
+		}
+		created = append(created, item)
+	}
+	items = append(items, created...)
+	if err := s.saveLocked(items); err != nil {
+		return nil, err
+	}
+	return created, nil
+}
+
+func importFieldNoteBundle(bundle fieldNoteBundle, store *fieldNoteStore) ([]fieldNote, error) {
+	if bundle.Format != fieldNoteBundleFormat {
+		return nil, errors.New("unsupported field note bundle format")
+	}
+	if bundle.Version != fieldNoteBundleVersion {
+		return nil, fmt.Errorf("unsupported field note bundle version %d", bundle.Version)
+	}
+	requests := make([]fieldNoteRequest, 0, len(bundle.Notes))
+	for _, note := range bundle.Notes {
+		requests = append(requests, fieldNoteRequest{
+			Title: note.Title, Body: note.Body, Status: note.Status, Type: note.Type,
+			WaypointID: note.WaypointID, WorkspaceID: note.WorkspaceID, OccurredAt: note.OccurredAt,
+		})
+	}
+	return store.importMany(requests)
 }
 
 func (s *fieldNoteStore) get(id string) (fieldNote, error) {
