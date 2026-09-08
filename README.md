@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.34 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.35 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -55,6 +55,11 @@ M1.34 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - field-note status/type distributions and six-month UTC activity summary
 - most-used linked waypoint and mystery-workspace summaries with local name resolution
 - dashboard aggregation is browser-local and read-only with no external telemetry
+- waypoint selection on the local map opens a waypoint-specific field-note view using stable waypoint IDs
+- map waypoint logbook lists only notes whose `waypoint_id` matches the selected waypoint
+- one-click creation of a new field note with the selected map waypoint preselected
+- route/track map selections do not disturb the current waypoint logbook context
+- map waypoint logbook refreshes after field-note CRUD/import changes
 - explicit browser-side export of the current breadcrumb session as a GPX 1.1 track
 - manual markers export as standard GPX 1.1 waypoints
 - paused/resumed recording exports as separate GPX `<trkseg>` elements
@@ -105,7 +110,7 @@ M1.34 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_34.md](docs/M1_34.md).
+See [docs/M1_35.md](docs/M1_35.md).
 
 ## Run with Go
 
@@ -171,7 +176,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.32: browser-local field-note search/filter plus explicit filtered JSON/CSV export
 - M1.33: versioned field-note JSON backup import with new local IDs and atomic append restore
 - M1.34: local read-only logbook dashboard with activity, status/type and linked-target summaries
-- Next: field-note attachment support, richer map/logbook integration, or additional well-defined CRS families
+- M1.35: map waypoint logbook integration and prefilled field-note creation from map selection
+- Next: field-note attachment support, richer map overlays, or additional well-defined CRS families
 
 ## License
 
