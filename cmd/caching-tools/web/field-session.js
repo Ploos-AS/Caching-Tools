@@ -9,6 +9,9 @@ sessionControls.innerHTML = `
   <label>Marker note<input id="field-marker-note" placeholder="Optional field note"></label>
   <button type="button" id="field-marker-add">Add marker at current position</button>
   <button type="button" id="field-marker-clear">Clear markers</button>
+  <label>Promote marker<select id="field-marker-promote-select"><option value="">No manual markers</option></select></label>
+  <label>Waypoint name<input id="field-marker-waypoint-name" placeholder="Field marker"></label>
+  <button type="button" id="field-marker-promote">Promote marker to waypoint</button>
   <p id="field-recording-status" aria-live="polite">Breadcrumb recording active.</p>
   <pre id="field-session-markers" class="result">No manual markers.</pre>`;
 
@@ -22,6 +25,9 @@ const fieldRecordingStatus = sessionControls.querySelector('#field-recording-sta
 const fieldMarkerType = sessionControls.querySelector('#field-marker-type');
 const fieldMarkerCustom = sessionControls.querySelector('#field-marker-custom');
 const fieldMarkerNote = sessionControls.querySelector('#field-marker-note');
+const fieldMarkerPromoteSelect = sessionControls.querySelector('#field-marker-promote-select');
+const fieldMarkerWaypointName = sessionControls.querySelector('#field-marker-waypoint-name');
+const fieldMarkerPromote = sessionControls.querySelector('#field-marker-promote');
 const fieldSessionMarkers = sessionControls.querySelector('#field-session-markers');
 let breadcrumbRecordingPaused = false;
 let recordingSegmentID = 0;
@@ -57,18 +63,51 @@ function markerTypeValue() {
   return custom || 'custom';
 }
 
+function suggestedWaypointName(marker, index) {
+  const label = marker.type.charAt(0).toUpperCase() + marker.type.slice(1);
+  return `${label} field marker ${index + 1}`;
+}
+
+function renderMarkerPromotionOptions() {
+  const previous = fieldMarkerPromoteSelect.value;
+  fieldMarkerPromoteSelect.replaceChildren();
+  if (!liveMarkers.length) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = 'No manual markers';
+    fieldMarkerPromoteSelect.append(option);
+    fieldMarkerWaypointName.value = '';
+    fieldMarkerPromote.disabled = true;
+    return;
+  }
+  liveMarkers.forEach((marker, index) => {
+    const option = document.createElement('option');
+    option.value = String(index);
+    option.textContent = `${index + 1}: ${marker.type}${marker.promotedWaypointID ? ' · saved' : ''}`;
+    fieldMarkerPromoteSelect.append(option);
+  });
+  fieldMarkerPromoteSelect.value = [...fieldMarkerPromoteSelect.options].some(option => option.value === previous) ? previous : '0';
+  const selectedIndex = Number(fieldMarkerPromoteSelect.value);
+  const selected = liveMarkers[selectedIndex];
+  fieldMarkerWaypointName.value = selected ? suggestedWaypointName(selected, selectedIndex) : '';
+  fieldMarkerPromote.disabled = !selected || Boolean(selected.promotedWaypointID);
+}
+
 function renderMarkers() {
+  renderMarkerPromotionOptions();
   if (!liveMarkers.length) {
     fieldSessionMarkers.textContent = 'No manual markers.';
     return;
   }
   const recent = liveMarkers.slice(-12);
+  const offset = liveMarkers.length - recent.length;
   const lines = [`${liveMarkers.length} manual marker${liveMarkers.length === 1 ? '' : 's'} in this in-memory session.`];
   if (liveMarkers.length > recent.length) lines.push(`Showing the latest ${recent.length}:`);
-  for (const marker of recent) {
+  recent.forEach((marker, recentIndex) => {
     const note = marker.note ? ` · ${marker.note}` : '';
-    lines.push(`${marker.time}  ${marker.type}  ${marker.latitude.toFixed(7)}, ${marker.longitude.toFixed(7)}${note}`);
-  }
+    const promoted = marker.promotedWaypointID ? ` · waypoint ${marker.promotedWaypointID}` : '';
+    lines.push(`${offset + recentIndex + 1}. ${marker.time}  ${marker.type}  ${marker.latitude.toFixed(7)}, ${marker.longitude.toFixed(7)}${note}${promoted}`);
+  });
   fieldSessionMarkers.textContent = lines.join('\n');
 }
 
@@ -84,12 +123,50 @@ function addManualMarker() {
     longitude,
     type: markerTypeValue(),
     note: fieldMarkerNote.value.trim(),
-    time: new Date().toISOString()
+    time: new Date().toISOString(),
+    promotedWaypointID: ''
   });
   if (liveMarkers.length > 500) liveMarkers.shift();
   fieldMarkerNote.value = '';
   renderMarkers();
+  fieldMarkerPromoteSelect.value = String(liveMarkers.length - 1);
+  fieldMarkerWaypointName.value = suggestedWaypointName(liveMarkers[liveMarkers.length - 1], liveMarkers.length - 1);
+  fieldMarkerPromote.disabled = false;
   fieldRecordingStatus.textContent = `Added ${liveMarkers[liveMarkers.length - 1].type} marker.`;
+}
+
+async function promoteManualMarker() {
+  const index = Number(fieldMarkerPromoteSelect.value);
+  const marker = liveMarkers[index];
+  if (!marker) {
+    fieldRecordingStatus.textContent = 'Choose a manual marker to promote.';
+    return;
+  }
+  if (marker.promotedWaypointID) {
+    fieldRecordingStatus.textContent = `Marker is already saved as waypoint ${marker.promotedWaypointID}.`;
+    return;
+  }
+  const name = fieldMarkerWaypointName.value.trim() || suggestedWaypointName(marker, index);
+  const provenance = `Promoted from live field session marker recorded ${marker.time}.`;
+  const comment = marker.note ? `${marker.note}\n${provenance}` : provenance;
+  fieldMarkerPromote.disabled = true;
+  try {
+    const saved = await postJSON('/api/waypoints', {
+      name,
+      latitude: String(marker.latitude),
+      longitude: String(marker.longitude),
+      type: marker.type,
+      comment
+    });
+    marker.promotedWaypointID = saved.id;
+    renderMarkers();
+    await Promise.all([loadWaypoints(), loadFieldTargets()]);
+    if (window.refreshLocalMap) await window.refreshLocalMap();
+    fieldRecordingStatus.textContent = `Promoted marker ${index + 1} to waypoint ${saved.id}.`;
+  } catch (error) {
+    fieldMarkerPromote.disabled = false;
+    fieldRecordingStatus.textContent = `Waypoint promotion error: ${error.message}`;
+  }
 }
 
 const addBreadcrumbQualityFiltered = addBreadcrumb;
@@ -199,8 +276,15 @@ sessionControls.querySelector('#field-marker-clear').addEventListener('click', (
   renderMarkers();
   fieldRecordingStatus.textContent = 'Manual markers cleared.';
 });
+fieldMarkerPromoteSelect.addEventListener('change', () => {
+  const index = Number(fieldMarkerPromoteSelect.value);
+  const marker = liveMarkers[index];
+  fieldMarkerWaypointName.value = marker ? suggestedWaypointName(marker, index) : '';
+  fieldMarkerPromote.disabled = !marker || Boolean(marker.promotedWaypointID);
+});
+fieldMarkerPromote.addEventListener('click', promoteManualMarker);
 
 renderRecordingStatus();
 renderMarkers();
 const sessionFooter = document.querySelector('footer');
-if (sessionFooter) sessionFooter.textContent = 'Caching Tools M1.29';
+if (sessionFooter) sessionFooter.textContent = 'Caching Tools M1.30';
