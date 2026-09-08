@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,9 +15,13 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
-const fieldNoteAttachmentMaxBytes int64 = 10 * 1024 * 1024
+const (
+	fieldNoteAttachmentMaxBytes    int64 = 10 * 1024 * 1024
+	fieldNoteAttachmentPreviewMax       = 64 * 1024
+)
 
 var allowedFieldNoteAttachmentTypes = map[string]bool{
 	"image/jpeg": true,
@@ -38,6 +43,10 @@ type fieldNoteAttachment struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"content_type"`
 	Size        int64  `json:"size"`
+	SHA256      string `json:"sha256,omitempty"`
+	PreviewKind string `json:"preview_kind,omitempty"`
+	TextLines   int    `json:"text_lines,omitempty"`
+	PDFVersion  string `json:"pdf_version,omitempty"`
 	CreatedAt   string `json:"created_at"`
 }
 
@@ -77,6 +86,38 @@ func detectAllowedAttachmentType(data []byte) (string, error) {
 	return "", fmt.Errorf("unsupported attachment content type %q", contentType)
 }
 
+func attachmentPreviewKind(contentType string) string {
+	switch {
+	case strings.HasPrefix(contentType, "image/"):
+		return "image"
+	case contentType == "application/pdf":
+		return "pdf"
+	case strings.HasPrefix(contentType, "text/"), contentType == "application/json", contentType == "application/xml", contentType == "application/gpx+xml":
+		return "text"
+	default:
+		return "none"
+	}
+}
+
+func enrichAttachmentMetadata(item fieldNoteAttachment, data []byte) fieldNoteAttachment {
+	sum := sha256.Sum256(data)
+	item.SHA256 = fmt.Sprintf("%x", sum[:])
+	item.Size = int64(len(data))
+	item.PreviewKind = attachmentPreviewKind(item.ContentType)
+	item.TextLines = 0
+	item.PDFVersion = ""
+	if item.PreviewKind == "text" && utf8.Valid(data) {
+		item.TextLines = 1 + strings.Count(string(data), "\n")
+		if len(data) > 0 && data[len(data)-1] == '\n' {
+			item.TextLines--
+		}
+	}
+	if item.PreviewKind == "pdf" && len(data) >= 8 && strings.HasPrefix(string(data[:8]), "%PDF-") {
+		item.PDFVersion = strings.TrimSpace(string(data[5:8]))
+	}
+	return item
+}
+
 func readAttachment(file multipart.File) ([]byte, error) {
 	data, err := io.ReadAll(io.LimitReader(file, fieldNoteAttachmentMaxBytes+1))
 	if err != nil {
@@ -108,7 +149,8 @@ func (s *fieldNoteAttachmentStore) create(noteID, filename string, data []byte) 
 		return fieldNoteAttachment{}, err
 	}
 	id := fmt.Sprintf("att-%x", time.Now().UnixNano())
-	item := fieldNoteAttachment{ID: id, NoteID: noteID, Filename: filename, ContentType: contentType, Size: int64(len(data)), CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	item := fieldNoteAttachment{ID: id, NoteID: noteID, Filename: filename, ContentType: contentType, CreatedAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	item = enrichAttachmentMetadata(item, data)
 	dataPath := filepath.Join(dir, id+".bin")
 	metaPath := filepath.Join(dir, id+".json")
 	dataTmp := dataPath + ".tmp"
@@ -153,17 +195,22 @@ func (s *fieldNoteAttachmentStore) list(noteID string) ([]fieldNoteAttachment, e
 		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(s.noteDir(noteID), entry.Name()))
+		meta, err := os.ReadFile(filepath.Join(s.noteDir(noteID), entry.Name()))
 		if err != nil {
 			return nil, err
 		}
 		var item fieldNoteAttachment
-		if err := json.Unmarshal(data, &item); err != nil {
+		if err := json.Unmarshal(meta, &item); err != nil {
 			return nil, fmt.Errorf("read attachment metadata: %w", err)
 		}
-		if item.NoteID == noteID && safeAttachmentID(item.ID) {
-			items = append(items, item)
+		if item.NoteID != noteID || !safeAttachmentID(item.ID) {
+			continue
 		}
+		data, err := os.ReadFile(filepath.Join(s.noteDir(noteID), item.ID+".bin"))
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, enrichAttachmentMetadata(item, data))
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].CreatedAt > items[j].CreatedAt })
 	return items, nil
@@ -194,7 +241,10 @@ func (s *fieldNoteAttachmentStore) get(noteID, id string) (fieldNoteAttachment, 
 	if errors.Is(err, os.ErrNotExist) {
 		return fieldNoteAttachment{}, nil, os.ErrNotExist
 	}
-	return item, data, err
+	if err != nil {
+		return fieldNoteAttachment{}, nil, err
+	}
+	return enrichAttachmentMetadata(item, data), data, nil
 }
 
 func (s *fieldNoteAttachmentStore) delete(noteID, id string) error {
@@ -226,6 +276,25 @@ func (s *fieldNoteAttachmentStore) deleteForNote(noteID string) error {
 
 func fieldNoteExists(store *fieldNoteStore, id string) error {
 	_, err := store.get(id)
+	return err
+}
+
+func writeAttachmentPreview(w http.ResponseWriter, item fieldNoteAttachment, data []byte) error {
+	if item.PreviewKind == "none" {
+		return errors.New("attachment type does not support preview")
+	}
+	if item.PreviewKind == "text" && len(data) > fieldNoteAttachmentPreviewMax {
+		data = data[:fieldNoteAttachmentPreviewMax]
+		for len(data) > 0 && !utf8.Valid(data) {
+			data = data[:len(data)-1]
+		}
+	}
+	w.Header().Set("Content-Type", item.ContentType)
+	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": item.Filename}))
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Cache-Control", "private, max-age=60")
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write(data)
 	return err
 }
 
@@ -264,6 +333,15 @@ func registerFieldNoteAttachmentRoutes(mux *http.ServeMux, notes *fieldNoteStore
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.WriteHeader(200)
 		_, _ = w.Write(data)
+	})
+
+	mux.HandleFunc("GET /api/field-notes/{id}/attachments/{attachment_id}/preview", func(w http.ResponseWriter, r *http.Request) {
+		noteID := r.PathValue("id")
+		if err := fieldNoteExists(notes, noteID); errors.Is(err, os.ErrNotExist) { writeError(w, 404, errors.New("field note not found")); return } else if err != nil { writeError(w, 500, err); return }
+		item, data, err := attachments.get(noteID, r.PathValue("attachment_id"))
+		if errors.Is(err, os.ErrNotExist) { writeError(w, 404, errors.New("attachment not found")); return }
+		if err != nil { writeError(w, 500, err); return }
+		if err := writeAttachmentPreview(w, item, data); err != nil { writeError(w, 415, err); return }
 	})
 
 	mux.HandleFunc("DELETE /api/field-notes/{id}/attachments/{attachment_id}", func(w http.ResponseWriter, r *http.Request) {
