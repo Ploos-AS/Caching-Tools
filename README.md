@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.32 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
+M1.33 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox:
 
 - DD / DMM / DMS parsing and conversion
 - great-circle distance, bearing and waypoint projection
@@ -46,6 +46,11 @@ M1.32 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - browser-local field-note free-text search and status/type/waypoint/workspace filters
 - explicit export of the currently filtered field-note set as versioned JSON or CSV
 - field-note search/filter/export does not modify the persistent store or schema
+- versioned field-note JSON backup import via `POST /api/field-notes/import`
+- strict field-note bundle format/version validation
+- imported field notes receive new local IDs and fresh create/update timestamps
+- field-note restore appends atomically and never partially imports an invalid bundle
+- existing notes remain unchanged during backup restore
 - explicit browser-side export of the current breadcrumb session as a GPX 1.1 track
 - manual markers export as standard GPX 1.1 waypoints
 - paused/resumed recording exports as separate GPX `<trkseg>` elements
@@ -96,7 +101,7 @@ M1.32 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - interactive web UI and JSON/GPX APIs
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_32.md](docs/M1_32.md).
+See [docs/M1_33.md](docs/M1_33.md).
 
 ## Run with Go
 
@@ -160,7 +165,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.30: explicit promotion of manual field-session markers into persistent local waypoints
 - M1.31: persistent local field notes/logbook with optional waypoint and mystery-workspace links
 - M1.32: browser-local field-note search/filter plus explicit filtered JSON/CSV export
-- Next: field-note import/backup roundtrip, richer logbook summaries, or additional well-defined CRS families
+- M1.33: versioned field-note JSON backup import with new local IDs and atomic append restore
+- Next: richer logbook summaries, field-note attachment support, or additional well-defined CRS families
 
 ## License
 
