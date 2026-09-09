@@ -36,11 +36,14 @@ const fieldSessionRestore = sessionControls.querySelector('#field-session-restor
 const fieldSessionDiscard = sessionControls.querySelector('#field-session-discard');
 const fieldSessionRecoveryStatus = sessionControls.querySelector('#field-session-recovery-status');
 const sessionRecoveryKey = 'caching-tools.field-session.v1';
+const sessionRecoveryMaxAgeMS = 7 * 24 * 60 * 60 * 1000;
+const sessionRecoveryMaxBytes = 2 * 1024 * 1024;
 let breadcrumbRecordingPaused = false;
 let recordingSegmentID = 0;
 let startNewRecordingSegment = false;
 let liveMarkers = [];
 let recoveredSession = null;
+let recoveryNotice = '';
 
 function sessionStorage() {
   try { return window.localStorage || localStorage; } catch { return null; }
@@ -53,9 +56,11 @@ function validRecoveredPoint(item) {
 function normalizeRecoveredSession(value) {
   if (!value || value.version !== 1 || !Array.isArray(value.breadcrumbs) || !Array.isArray(value.markers)) return null;
   if (!value.breadcrumbs.every(validRecoveredPoint) || !value.markers.every(validRecoveredPoint)) return null;
+  const savedAt = typeof value.savedAt === 'string' ? value.savedAt : '';
+  if (!Number.isFinite(Date.parse(savedAt))) return null;
   return {
     version: 1,
-    savedAt: typeof value.savedAt === 'string' ? value.savedAt : '',
+    savedAt,
     breadcrumbs: value.breadcrumbs.slice(0, 10000),
     markers: value.markers.slice(0, 500),
     paused: Boolean(value.paused),
@@ -63,34 +68,71 @@ function normalizeRecoveredSession(value) {
   };
 }
 
+function recoveredSessionAgeMS(session, now = Date.now()) {
+  const saved = Date.parse(session?.savedAt || '');
+  if (!Number.isFinite(saved)) return Infinity;
+  return Math.max(0, now - saved);
+}
+
+function formatRecoveryAge(savedAt, now = Date.now()) {
+  const saved = Date.parse(savedAt || '');
+  if (!Number.isFinite(saved)) return 'unknown age';
+  const seconds = Math.max(0, Math.floor((now - saved) / 1000));
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
 function renderRecoveryStatus() {
   const available = Boolean(recoveredSession);
   fieldSessionRestore.disabled = !available;
   fieldSessionDiscard.disabled = !available;
   if (!available) {
-    fieldSessionRecoveryStatus.textContent = 'No recovered session.';
+    fieldSessionRecoveryStatus.textContent = recoveryNotice || 'No recovered session.';
     return;
   }
-  const when = recoveredSession.savedAt ? ` saved ${recoveredSession.savedAt}` : '';
-  fieldSessionRecoveryStatus.textContent = `Recovered session available${when}: ${recoveredSession.breadcrumbs.length} breadcrumb${recoveredSession.breadcrumbs.length === 1 ? '' : 's'}, ${recoveredSession.markers.length} marker${recoveredSession.markers.length === 1 ? '' : 's'}.`;
+  const age = formatRecoveryAge(recoveredSession.savedAt);
+  fieldSessionRecoveryStatus.textContent = `Recovered session available · ${age}: ${recoveredSession.breadcrumbs.length} breadcrumb${recoveredSession.breadcrumbs.length === 1 ? '' : 's'}, ${recoveredSession.markers.length} marker${recoveredSession.markers.length === 1 ? '' : 's'}.`;
 }
 
 function loadRecoveredSession() {
   const storage = sessionStorage();
-  if (!storage) return;
+  if (!storage) {
+    recoveryNotice = 'Session recovery storage is unavailable in this browser.';
+    renderRecoveryStatus();
+    return;
+  }
   try {
     const raw = storage.getItem(sessionRecoveryKey);
     recoveredSession = raw ? normalizeRecoveredSession(JSON.parse(raw)) : null;
-    if (raw && !recoveredSession) storage.removeItem(sessionRecoveryKey);
+    if (raw && !recoveredSession) {
+      storage.removeItem(sessionRecoveryKey);
+      recoveryNotice = 'Invalid recovered session was discarded.';
+    } else if (recoveredSession && recoveredSessionAgeMS(recoveredSession) > sessionRecoveryMaxAgeMS) {
+      storage.removeItem(sessionRecoveryKey);
+      recoveredSession = null;
+      recoveryNotice = 'Recovered session was older than 7 days and was discarded.';
+    } else {
+      recoveryNotice = '';
+    }
   } catch {
     recoveredSession = null;
+    recoveryNotice = 'Recovered session could not be read and was ignored.';
   }
   renderRecoveryStatus();
 }
 
 function persistFieldSession() {
   const storage = sessionStorage();
-  if (!storage) return false;
+  if (!storage) {
+    recoveryNotice = 'Session recovery autosave is unavailable in this browser.';
+    renderRecoveryStatus();
+    return false;
+  }
   if (!liveBreadcrumbs.length && !liveMarkers.length) {
     try { storage.removeItem(sessionRecoveryKey); } catch {}
     return true;
@@ -103,10 +145,19 @@ function persistFieldSession() {
     paused: breadcrumbRecordingPaused,
     segmentID: recordingSegmentID
   };
+  const encoded = JSON.stringify(snapshot);
+  if (encoded.length > sessionRecoveryMaxBytes) {
+    recoveryNotice = 'Session recovery autosave skipped because the snapshot exceeded 2 MiB.';
+    renderRecoveryStatus();
+    return false;
+  }
   try {
-    storage.setItem(sessionRecoveryKey, JSON.stringify(snapshot));
+    storage.setItem(sessionRecoveryKey, encoded);
+    recoveryNotice = '';
     return true;
   } catch {
+    recoveryNotice = 'Session recovery autosave failed because browser storage is full or unavailable.';
+    renderRecoveryStatus();
     return false;
   }
 }
@@ -115,6 +166,7 @@ function discardRecoveredSession() {
   const storage = sessionStorage();
   try { storage?.removeItem(sessionRecoveryKey); } catch {}
   recoveredSession = null;
+  recoveryNotice = '';
   renderRecoveryStatus();
 }
 
@@ -129,6 +181,7 @@ function restoreRecoveredSession() {
   renderMarkers();
   fieldRecordingStatus.textContent = `Recovered ${liveBreadcrumbs.length} breadcrumbs and ${liveMarkers.length} markers. Live GPS remains stopped until explicitly started.`;
   recoveredSession = null;
+  recoveryNotice = '';
   renderRecoveryStatus();
   persistFieldSession();
   if (typeof window.renderMapOverlays === 'function') window.renderMapOverlays();
@@ -329,4 +382,4 @@ renderRecordingStatus();
 renderMarkers();
 loadRecoveredSession();
 const sessionFooter = document.querySelector('footer');
-if (sessionFooter) sessionFooter.textContent = 'Caching Tools M1.51';
+if (sessionFooter) sessionFooter.textContent = 'Caching Tools M1.52';
