@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.46 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.47 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
 - distance, bearing, projection and coordinate-intersection tools
@@ -24,6 +24,8 @@ M1.46 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - hardened dynamic browser asset chain with readiness sentinels, idempotent continuation and failed-load retry
 - executable Node runtime tests for loader state transitions, stable-ID map/list selection and map overlays
 - executable live field-session runtime tests for quality filtering, pause/resume segmentation, manual markers and waypoint promotion
+- executable live-session GPX runtime tests for multi-segment tracks, marker waypoints, per-segment simplification and marker-only export
+- marker-only live sessions now export valid waypoint-only GPX instead of failing because no breadcrumbs exist
 - browser runtime qualification uses Node's built-in `node:test` and small local fake-DOM harnesses; no npm dependencies are required
 - field navigation to waypoints and nearest/cross-track/progress guidance for saved paths
 - live browser geolocation navigation with quality-filtered, segment-aware breadcrumbs
@@ -38,7 +40,7 @@ M1.46 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - one OCI-oriented Go application with local persistence under `/data`
 - Go unit, HTTP/static-asset tests and browser-side runtime tests
 
-See [docs/M1_46.md](docs/M1_46.md). Map-overlay runtime qualification details are in [docs/M1_45.md](docs/M1_45.md).
+See [docs/M1_47.md](docs/M1_47.md). Live field-session runtime qualification details are in [docs/M1_46.md](docs/M1_46.md).
 
 ## Run with Go
 
@@ -116,7 +118,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.44: executable browser-side runtime qualification for dynamic UI orchestration and stable-ID selection
 - M1.45: executable browser runtime qualification for waypoint/path navigation map overlays and rerender behavior
 - M1.46: executable live field-session runtime qualification for quality filters, pause/resume, markers and waypoint promotion
-- Next: additional well-defined CRS families, GPX live-session runtime qualification, or field-navigation map polish
+- M1.47: executable live-session GPX qualification plus valid marker-only GPX export
+- Next: additional well-defined CRS families, field-navigation map polish, or broader browser runtime coverage
 
 ## License
 
