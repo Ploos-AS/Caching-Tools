@@ -65,6 +65,10 @@ function ensureDynamicAsset({dataAttribute, src, readySelector, next}) {
 
   const selector = `script[${dataAttribute}]`;
   let script = document.querySelector(selector);
+  if (script?.dataset.loaderState === 'failed') {
+    script.remove();
+    script = null;
+  }
   if (script) {
     if (script.dataset.loaderState === 'loaded') {
       runLoaderNext(next);
