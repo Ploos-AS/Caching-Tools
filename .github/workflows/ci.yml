@@ -17,8 +17,14 @@ jobs:
         with:
           go-version-file: go.mod
           cache: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: false
       - name: Test
         run: go test ./...
+      - name: Browser runtime tests
+        run: node --test tests/browser/*.test.mjs
       - name: Vet
         run: go vet ./...
       - name: Build
