@@ -15,7 +15,8 @@ func TestLocalMapAssetsAreServed(t *testing.T) {
 	asset := httptest.NewRecorder(); h.ServeHTTP(asset, httptest.NewRequest(http.MethodGet, "/map.js", nil)); if asset.Code != http.StatusOK { t.Fatalf("map.js status=%d", asset.Code) }
 	for _, want := range []string{"refreshLocalMap","/api/waypoints","/api/paths","createElementNS","segment.Points","point.Latitude","point.Longitude","pointerdown","wheel","map-fit-selection","caching-tools:map-select","tabindex"} { if !strings.Contains(asset.Body.String(), want) { t.Fatalf("missing %q from map.js", want) } }
 	link := httptest.NewRecorder(); h.ServeHTTP(link, httptest.NewRequest(http.MethodGet, "/map-link.js", nil)); if link.Code != http.StatusOK { t.Fatalf("map-link.js status=%d", link.Code) }
-	for _, want := range []string{"caching-tools:map-select","list-selected","scrollIntoView"} { if !strings.Contains(link.Body.String(), want) { t.Fatalf("missing %q from map-link.js", want) } }
+	for _, want := range []string{"caching-tools:map-select","list-selected","scrollIntoView","annotateMapList","MutationObserver","dataset.mapId","dataset.mapKind","/api/waypoints","/api/paths","selectLinkedMapRow"} { if !strings.Contains(link.Body.String(), want) { t.Fatalf("missing %q from map-link.js", want) } }
+	for _, unwanted := range []string{"text.startsWith(name)","text.includes(`${kind}: ${name}`)"} { if strings.Contains(link.Body.String(), unwanted) { t.Fatalf("obsolete text-based linkage still present: %q", unwanted) } }
 }
 
 func TestMapOverlayUIAsset(t *testing.T) {
