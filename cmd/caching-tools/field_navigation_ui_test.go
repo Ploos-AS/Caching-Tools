@@ -35,7 +35,8 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 		"Pause breadcrumb recording","Resume breadcrumb recording","Breadcrumb recording paused. Live navigation continues.","recordingSegmentID","addBreadcrumbWithPause","sessionStatisticsWithPauseSegments",
 		"Marker type","cache","trailhead","note","custom","Add marker at current position","field-marker-add","liveMarkers","markerGPX","<wpt lat=","recordingSegmentsForExport","breadcrumbGPXWithMarkersAndSegments",
 		"Promote marker","Waypoint name","field-marker-promote-select","field-marker-waypoint-name","field-marker-promote","promoteManualMarker","suggestedWaypointName","promotedWaypointID","postJSON('/api/waypoints'","loadWaypoints()","loadFieldTargets()","refreshLocalMap","Promoted from live field session marker",
-		"Restore recovered session","Discard recovered session","caching-tools.field-session.v1","persistFieldSession","restoreRecoveredSession","discardRecoveredSession","Live GPS remains stopped until explicitly started","Caching Tools M1.51",
+		"Restore recovered session","Discard recovered session","caching-tools.field-session.v1","persistFieldSession","restoreRecoveredSession","discardRecoveredSession","Live GPS remains stopped until explicitly started",
+		"sessionRecoveryMaxAgeMS","older than 7 days","formatRecoveryAge","sessionRecoveryMaxBytes","exceeded 2 MiB","storage is full or unavailable","Caching Tools M1.52",
 	} { if !strings.Contains(session.Body.String(),want){t.Fatalf("missing %q from field-session.js",want)} }
 
 	notes:=httptest.NewRecorder(); h.ServeHTTP(notes,httptest.NewRequest(http.MethodGet,"/field-notes.js",nil))
