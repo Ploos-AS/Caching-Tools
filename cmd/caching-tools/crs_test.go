@@ -20,6 +20,33 @@ func TestCRSWGS84ToETRS89UTMAndBack(t *testing.T) {
 	if !back.Approximate { t.Fatal("expected ETRS89->WGS84 approximation flag") }
 }
 
+func TestCRSExplicitEPSG25832DerivesZone(t *testing.T) {
+	forward, err := convertCRS(crsRequest{Source:"EPSG:4258", Target:"EPSG:25832", Latitude:"59.9139", Longitude:"10.7522"})
+	if err != nil { t.Fatal(err) }
+	if forward.Grid == nil || forward.Grid.Zone != 32 || forward.Target != "EPSG:25832" { t.Fatalf("forward=%+v", forward) }
+
+	back, err := convertCRS(crsRequest{Source:"EPSG:25832", Target:"EPSG:4258", Easting:forward.Grid.Easting, Northing:forward.Grid.Northing})
+	if err != nil { t.Fatal(err) }
+	if back.Source != "EPSG:25832" || back.Point == nil { t.Fatalf("back=%+v", back) }
+	if math.Abs(back.Point.Latitude-59.9139) > 1e-5 || math.Abs(back.Point.Longitude-10.7522) > 1e-5 { t.Fatalf("point=%+v", back.Point) }
+}
+
+func TestCRSExplicitEPSGZoneConflictIsRejected(t *testing.T) {
+	_, err := convertCRS(crsRequest{Source:"EPSG:4258", Target:"EPSG:25832", Latitude:"59", Longitude:"10", Zone:33})
+	if err == nil { t.Fatal("expected explicit CRS/zone conflict") }
+}
+
+func TestCRSExplicitETRS89UTMFamily(t *testing.T) {
+	for zone := 28; zone <= 38; zone++ {
+		crs := etrs89UTMCRS(zone)
+		parsed, ok := etrs89UTMZoneFromCRS(crs)
+		if !ok || parsed != zone { t.Fatalf("%s parsed=%d ok=%v", crs, parsed, ok) }
+		if normalizeCRS(crs) != crs { t.Fatalf("normalize %s", crs) }
+	}
+	if _, ok := etrs89UTMZoneFromCRS("EPSG:25827"); ok { t.Fatal("zone 27 must not be accepted") }
+	if _, ok := etrs89UTMZoneFromCRS("EPSG:25839"); ok { t.Fatal("zone 39 must not be accepted") }
+}
+
 func TestCRSETRS89GeographicToGridIsNotApproximate(t *testing.T) {
 	result, err := convertCRS(crsRequest{Source:"EPSG:4258", Target:"ETRS89-UTM", Latitude:"59.9139", Longitude:"10.7522", Zone:32})
 	if err != nil { t.Fatal(err) }
