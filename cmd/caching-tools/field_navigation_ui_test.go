@@ -39,6 +39,12 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 		"sessionRecoveryMaxAgeMS","older than 7 days","formatRecoveryAge","sessionRecoveryMaxBytes","exceeded 2 MiB","storage is full or unavailable","Caching Tools M1.52",
 	} { if !strings.Contains(session.Body.String(),want){t.Fatalf("missing %q from field-session.js",want)} }
 
+	bundle:=httptest.NewRecorder(); h.ServeHTTP(bundle,httptest.NewRequest(http.MethodGet,"/field-session-bundle.js",nil))
+	if bundle.Code!=http.StatusOK{t.Fatalf("bundle asset status=%d",bundle.Code)}
+	for _,want:=range []string{
+		"Export session JSON","Import session JSON","caching-tools.field-session","portableFieldSessionBundle","normalizePortableFieldSessionBundle","importPortableFieldSessionBundle","importPortableFieldSessionFile","fieldSessionBundleMaxBytes","Live GPS remains stopped until explicitly started","application/json","URL.createObjectURL","Caching Tools M1.53",
+	} { if !strings.Contains(bundle.Body.String(),want){t.Fatalf("missing %q from field-session-bundle.js",want)} }
+
 	notes:=httptest.NewRecorder(); h.ServeHTTP(notes,httptest.NewRequest(http.MethodGet,"/field-notes.js",nil))
 	if notes.Code!=http.StatusOK{t.Fatalf("field notes asset status=%d",notes.Code)}
 	for _,want:=range []string{
@@ -47,5 +53,5 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 
 	link:=httptest.NewRecorder(); h.ServeHTTP(link,httptest.NewRequest(http.MethodGet,"/map-link.js",nil))
 	if link.Code!=http.StatusOK{t.Fatalf("map-link status=%d",link.Code)}
-	for _,want:=range []string{"/field-quality.js","data-field-quality","/field-session.js","data-field-session","loadFieldSession","/field-notes.js","data-field-notes","loadFieldNotes","/map-editor.js"} { if !strings.Contains(link.Body.String(),want){t.Fatalf("missing %q from map-link.js",want)} }
+	for _,want:=range []string{"/field-quality.js","data-field-quality","/field-session.js","data-field-session","loadFieldSession","/field-session-bundle.js","data-field-session-bundle","loadFieldSessionBundle","#field-session-bundle","/field-notes.js","data-field-notes","loadFieldNotes","/map-editor.js"} { if !strings.Contains(link.Body.String(),want){t.Fatalf("missing %q from map-link.js",want)} }
 }
