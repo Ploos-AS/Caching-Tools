@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.44 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.45 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
 - distance, bearing, projection and coordinate-intersection tools
@@ -23,7 +23,8 @@ M1.44 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - waypoint/path list rows are automatically re-annotated after CRUD rerenders, so duplicate names cannot select the wrong row
 - hardened dynamic browser asset chain with readiness sentinels, idempotent continuation and failed-load retry
 - executable Node runtime tests for loader state transitions, retry, duplicate-safe map/list selection and window-load orchestration
-- browser runtime qualification uses Node's built-in `node:test` and a small local fake DOM; no npm dependencies are required
+- executable runtime tests for waypoint guidance overlays, route/track cross-track/next-point overlays and stale-overlay clearing
+- browser runtime qualification uses Node's built-in `node:test` and small local fake-DOM harnesses; no npm dependencies are required
 - field navigation to waypoints and nearest/cross-track/progress guidance for saved paths
 - live browser geolocation navigation with quality-filtered, segment-aware breadcrumbs
 - explicit GPX export of live sessions and promotion of manual field markers to waypoints
@@ -37,7 +38,7 @@ M1.44 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - one OCI-oriented Go application with local persistence under `/data`
 - Go unit, HTTP/static-asset tests and browser-side runtime tests
 
-See [docs/M1_44.md](docs/M1_44.md). Loader hardening details are in [docs/M1_43.md](docs/M1_43.md).
+See [docs/M1_45.md](docs/M1_45.md). Loader/list runtime qualification details are in [docs/M1_44.md](docs/M1_44.md).
 
 ## Run with Go
 
@@ -113,7 +114,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.42: stable-ID map/list linkage hardening for duplicate-safe waypoint and path selection
 - M1.43: idempotent dynamic asset loading with readiness detection and failed-load retry
 - M1.44: executable browser-side runtime qualification for dynamic UI orchestration and stable-ID selection
-- Next: additional well-defined CRS families, broader browser runtime coverage, or field-navigation map polish
+- M1.45: executable browser runtime qualification for waypoint/path navigation map overlays and rerender behavior
+- Next: additional well-defined CRS families, field-navigation map polish, or broader runtime coverage for live session controls
 
 ## License
 
