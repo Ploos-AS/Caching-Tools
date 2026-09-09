@@ -1,13 +1,9 @@
 document.addEventListener('caching-tools:map-select', (event) => {
-  const {kind, name} = event.detail || {};
+  const {kind, id} = event.detail || {};
   const list = kind === 'waypoint' ? document.querySelector('#waypoint-list') : document.querySelector('#path-list');
-  if (!list) return;
+  if (!list || !id) return;
   for (const row of list.children) row.classList.remove('list-selected');
-  const rows = [...list.children];
-  const selected = rows.find((row) => {
-    const text = row.querySelector('pre')?.textContent || row.textContent || '';
-    return kind === 'waypoint' ? text.startsWith(name) : text.includes(`${kind}: ${name}`);
-  });
+  const selected = [...list.children].find((row) => row.dataset.mapKind === kind && row.dataset.mapId === id);
   if (!selected) return;
   selected.classList.add('list-selected');
   selected.scrollIntoView({behavior: 'smooth', block: 'center'});
