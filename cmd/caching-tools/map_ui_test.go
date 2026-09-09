@@ -13,7 +13,7 @@ func TestLocalMapAssetsAreServed(t *testing.T) {
 	if page.Code != http.StatusOK { t.Fatalf("page status=%d body=%s", page.Code, page.Body.String()) }
 	for _, want := range []string{`id="local-map"`,`id="map-refresh"`,`id="map-zoom-in"`,`id="map-zoom-out"`,`id="map-fit-all"`,`id="map-fit-selection"`,`id="map-selection"`,`src="/map-link.js"`,`src="/map.js"`,`src="/map-overlays.js"`} { if !strings.Contains(page.Body.String(), want) { t.Fatalf("missing %q from page", want) } }
 	asset := httptest.NewRecorder(); h.ServeHTTP(asset, httptest.NewRequest(http.MethodGet, "/map.js", nil)); if asset.Code != http.StatusOK { t.Fatalf("map.js status=%d", asset.Code) }
-	for _, want := range []string{"refreshLocalMap","/api/waypoints","/api/paths","createElementNS","segment.Points","point.Latitude","point.Longitude","pointerdown","wheel","map-fit-selection","caching-tools:map-select","tabindex"} { if !strings.Contains(asset.Body.String(), want) { t.Fatalf("missing %q from map.js", want) } }
+	for _, want := range []string{"refreshLocalMap","/api/waypoints","/api/paths","createElementNS","segment.Points","point.Latitude","point.Longitude","pointerdown","wheel","map-fit-selection","caching-tools:map-select","tabindex","centerViewOn","fitProjectedPoints","get view()","setView"} { if !strings.Contains(asset.Body.String(), want) { t.Fatalf("missing %q from map.js", want) } }
 	link := httptest.NewRecorder(); h.ServeHTTP(link, httptest.NewRequest(http.MethodGet, "/map-link.js", nil)); if link.Code != http.StatusOK { t.Fatalf("map-link.js status=%d", link.Code) }
 	for _, want := range []string{
 		"caching-tools:map-select","list-selected","scrollIntoView","annotateMapList","MutationObserver","dataset.mapId","dataset.mapKind","/api/waypoints","/api/paths","selectLinkedMapRow",
@@ -29,13 +29,11 @@ func TestMapOverlayUIAsset(t *testing.T) {
 	asset := httptest.NewRecorder(); h.ServeHTTP(asset, httptest.NewRequest(http.MethodGet, "/map-overlays.js", nil))
 	if asset.Code != http.StatusOK { t.Fatalf("map-overlays.js status=%d", asset.Code) }
 	for _, want := range []string{
-		"Waypoint labels","Waypoint radius","Position / target line","Route / track guidance",
+		"Waypoint labels","Waypoint radius","Position / target line","Route / track guidance","Live breadcrumbs / markers","Follow GPS position","Fit current session",
 		"map-overlay-layer","map-overlay-radius","map-overlay-position","map-overlay-guidance","map-overlay-arrival",
 		"map-overlay-cross-track","map-overlay-nearest","map-overlay-forward","map-overlay-next","map-overlay-next-arrival",
-		"map-overlay-status-${status}","guidance?.status",
-		"caching-tools:map-rendered","caching-tools:map-select","/api/waypoints","field-navigation-form","arrival-radius",
-		"navigateFieldWithoutOverlay","progress.next_point","forward_bearing_deg","cross_track_m","remaining_m","refreshMapOverlays",
-	} {
-		if !strings.Contains(asset.Body.String(), want) { t.Fatalf("missing %q from map-overlays.js", want) }
-	}
+		"map-overlay-live-breadcrumb","map-overlay-live-segment-gap","map-overlay-live-marker","map-overlay-live-marker-promoted",
+		"map-overlay-status-${status}","guidance?.status","caching-tools:map-rendered","caching-tools:map-select","/api/waypoints","field-navigation-form","arrival-radius",
+		"progress.next_point","forward_bearing_deg","cross_track_m","remaining_m","refreshMapOverlays","fitCurrentSession","followCurrentPosition","centerViewOn","fitProjectedPoints",
+	} { if !strings.Contains(asset.Body.String(), want) { t.Fatalf("missing %q from map-overlays.js", want) } }
 }
