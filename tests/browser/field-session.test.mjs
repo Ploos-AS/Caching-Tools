@@ -27,11 +27,6 @@ class FakeElement {
     for (const id of ids) {
       const node = new FakeElement('input', this.document);
       node.id = id;
-      const around = value.slice(Math.max(0, value.indexOf(`id="${id}"`) - 80), value.indexOf(`id="${id}"`) + 180);
-      const valueMatch = around.match(/value="([^"]*)"/);
-      if (valueMatch) node.value = valueMatch[1];
-      if (/checked/.test(around)) node.checked = true;
-      if (/disabled/.test(around)) node.disabled = true;
       this.document?.register(id, node);
     }
   }
@@ -148,6 +143,10 @@ function createHarness() {
   });
 
   vm.runInContext(qualitySource, context, {filename:'field-quality.js'});
+  document.querySelector('#field-min-distance').value = '3';
+  document.querySelector('#field-max-accuracy').value = '50';
+  document.querySelector('#field-export-simplify').checked = false;
+  document.querySelector('#field-simplify-tolerance').value = '5';
   vm.runInContext(sessionSource, context, {filename:'field-session.js'});
 
   return {
