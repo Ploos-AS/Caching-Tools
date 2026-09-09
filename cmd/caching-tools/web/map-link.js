@@ -1,12 +1,56 @@
-document.addEventListener('caching-tools:map-select', (event) => {
-  const {kind, id} = event.detail || {};
-  const list = kind === 'waypoint' ? document.querySelector('#waypoint-list') : document.querySelector('#path-list');
+const mapListLinkState = {
+  waypoint: {selector:'#waypoint-list', endpoint:'/api/waypoints', generation:0},
+  path: {selector:'#path-list', endpoint:'/api/paths', generation:0}
+};
+
+async function annotateMapList(kind) {
+  const state = mapListLinkState[kind];
+  if (!state) return;
+  const list = document.querySelector(state.selector);
+  if (!list) return;
+  const generation = ++state.generation;
+  const items = await requestJSON(state.endpoint);
+  if (generation !== state.generation) return;
+  const rows = [...list.children];
+  if (rows.length !== items.length) return;
+  items.forEach((item, index) => {
+    const row = rows[index];
+    row.dataset.mapId = item.id;
+    row.dataset.mapKind = kind === 'waypoint' ? 'waypoint' : item.kind;
+  });
+}
+
+function scheduleMapListAnnotation(kind) {
+  Promise.resolve().then(() => annotateMapList(kind)).catch(() => {});
+}
+
+for (const kind of ['waypoint','path']) {
+  const state = mapListLinkState[kind];
+  const list = document.querySelector(state.selector);
+  if (!list) continue;
+  new MutationObserver(() => scheduleMapListAnnotation(kind)).observe(list, {childList:true});
+  scheduleMapListAnnotation(kind);
+}
+
+async function selectLinkedMapRow(kind, id) {
+  const listKind = kind === 'waypoint' ? 'waypoint' : 'path';
+  const state = mapListLinkState[listKind];
+  const list = state ? document.querySelector(state.selector) : null;
   if (!list || !id) return;
   for (const row of list.children) row.classList.remove('list-selected');
-  const selected = [...list.children].find((row) => row.dataset.mapKind === kind && row.dataset.mapId === id);
+  let selected = [...list.children].find((row) => row.dataset.mapKind === kind && row.dataset.mapId === id);
+  if (!selected) {
+    try { await annotateMapList(listKind); } catch (_) { return; }
+    selected = [...list.children].find((row) => row.dataset.mapKind === kind && row.dataset.mapId === id);
+  }
   if (!selected) return;
   selected.classList.add('list-selected');
   selected.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+document.addEventListener('caching-tools:map-select', (event) => {
+  const {kind, id} = event.detail || {};
+  void selectLinkedMapRow(kind, id);
 });
 
 function loadFieldNoteIntegrity() {
