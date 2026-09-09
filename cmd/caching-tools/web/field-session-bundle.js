@@ -104,3 +104,5 @@ fieldSessionBundleImport?.addEventListener('change', async () => {
 
 window.portableFieldSessionBundle = portableFieldSessionBundle;
 window.importPortableFieldSessionBundle = importPortableFieldSessionBundle;
+const fieldSessionBundleFooter = document.querySelector('footer');
+if (fieldSessionBundleFooter) fieldSessionBundleFooter.textContent = 'Caching Tools M1.53';
