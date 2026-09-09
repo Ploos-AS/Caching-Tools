@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.51 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.52 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
 - explicit ETRS89 / UTM EPSG:25828–EPSG:25838 support with zone derived from CRS
@@ -23,6 +23,8 @@ M1.51 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - explicit fit-current-session action covering live breadcrumbs and manual markers
 - browser-local field-session crash/refresh recovery with explicit Restore/Discard controls
 - recovered sessions restore breadcrumbs, markers, pause state and segment state without automatically restarting GPS
+- recovery snapshots expire after seven days and show a human-readable age
+- recovery autosave has a 2 MiB ceiling and reports browser quota/storage failures without interrupting recording
 - promoted field markers are visually distinguished from ephemeral markers on the map
 - stable-ID map/list linkage and hardened dynamic browser asset loading
 - executable Node runtime tests for loader state, map overlays, live-session controls, recovery, viewport behavior and GPX export
@@ -33,7 +35,7 @@ M1.51 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - no external map tiles, CDN, provider account, API key or network dependency for core tools
 - one OCI-oriented Go application with local persistence under `/data`
 
-See [docs/M1_51.md](docs/M1_51.md). Live-map viewport controls are documented in [docs/M1_50.md](docs/M1_50.md), and live-session map overlays in [docs/M1_49.md](docs/M1_49.md).
+See [docs/M1_52.md](docs/M1_52.md). Field-session recovery is introduced in [docs/M1_51.md](docs/M1_51.md), and live-map viewport controls are documented in [docs/M1_50.md](docs/M1_50.md).
 
 ## Run with Go
 
@@ -116,7 +118,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.49: live field-session map overlay with segment-aware breadcrumbs, pause gaps and manual marker states
 - M1.50: opt-in live GPS viewport follow and explicit fit-current-session map control
 - M1.51: browser-local field-session crash/refresh recovery with explicit restore/discard semantics
-- Next: recovery hardening, additional carefully scoped CRS families, or broader browser runtime coverage
+- M1.52: recovery expiry, human-readable age, snapshot ceiling and quota/storage failure hardening
+- Next: additional carefully scoped CRS families, field-session export/import bundles, or broader browser runtime coverage
 
 ## License
 
