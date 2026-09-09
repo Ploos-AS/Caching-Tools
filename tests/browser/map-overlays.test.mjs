@@ -66,7 +66,7 @@ class FakeDocument {
   dispatchEvent(event) { for (const fn of this.listeners.get(event.type) || []) fn.call(this, event); }
 }
 
-function createHarness({waypoints = [], navigationResult = null} = {}) {
+function createHarness({waypoints = [], navigationResult = null, breadcrumbs = [], markers = []} = {}) {
   const document = new FakeDocument();
   const svg = new FakeElement('svg');
   const localMap = document.register('local-map', svg);
@@ -77,6 +77,7 @@ function createHarness({waypoints = [], navigationResult = null} = {}) {
   const radius = document.register('map-overlay-radius'); radius.value = '100';
   const guidance = document.register('map-overlay-guidance'); guidance.checked = true;
   const pathGuidance = document.register('map-overlay-path-guidance'); pathGuidance.checked = true;
+  const liveSession = document.register('map-overlay-live-session'); liveSession.checked = true;
   document.register('map-overlay-refresh');
   document.register('map-status');
 
@@ -99,10 +100,15 @@ function createHarness({waypoints = [], navigationResult = null} = {}) {
     if (navigationResult instanceof Error) throw navigationResult;
     return navigationResult;
   };
+  const addBreadcrumb = position => {
+    breadcrumbs.push({latitude:position.coords.latitude, longitude:position.coords.longitude, recordingSegment:position.segment ?? 0});
+    return true;
+  };
+  const renderMarkers = () => {};
 
-  const context = vm.createContext({document, window, requestJSON, navigateField, console, Promise, Math, Number, String});
+  const context = vm.createContext({document, window, requestJSON, navigateField, addBreadcrumb, renderMarkers, liveBreadcrumbs:breadcrumbs, liveMarkers:markers, console, Promise, Math, Number, String, Array});
   vm.runInContext(source, context, {filename:'map-overlays.js'});
-  return {context, document, window, svg, navigateCalls};
+  return {context, document, window, svg, navigateCalls, breadcrumbs, markers};
 }
 
 async function flushAsync() {
@@ -162,6 +168,51 @@ test('wrapped navigation renders route cross-track, next-point and status overla
   assert.ok(rendered.some(value => value.includes('map-overlay-status-label') && value.includes('map-overlay-status-off-route')));
   const label = layer.children.find(node => (node.getAttribute('class') || '').includes('map-overlay-status-label'));
   assert.match(label.textContent, /off-route · 42 m off · 1\.25 km left · 87°/);
+});
+
+test('live breadcrumbs render as separate recording segments with visible pause gap', async () => {
+  const breadcrumbs = [
+    {latitude:59.90, longitude:10.70, recordingSegment:0},
+    {latitude:59.91, longitude:10.71, recordingSegment:0},
+    {latitude:59.93, longitude:10.73, recordingSegment:1},
+    {latitude:59.94, longitude:10.74, recordingSegment:1}
+  ];
+  const {svg} = createHarness({breadcrumbs});
+  await flushAsync();
+  const layer = svg.querySelector('#map-overlay-layer');
+  const rendered = classes(layer);
+  assert.equal(rendered.filter(value => value === 'map-overlay-live-breadcrumb').length, 2);
+  assert.equal(rendered.filter(value => value === 'map-overlay-live-segment-gap').length, 1);
+  const polylines = layer.children.filter(node => node.getAttribute('class') === 'map-overlay-live-breadcrumb');
+  assert.deepEqual(polylines.map(node => node.getAttribute('data-recording-segment')), ['0','1']);
+});
+
+test('manual markers render with type labels and promoted state', async () => {
+  const markers = [
+    {latitude:59.91, longitude:10.71, type:'trailhead', promotedWaypointID:''},
+    {latitude:59.92, longitude:10.72, type:'cache', promotedWaypointID:'wp-7'}
+  ];
+  const {svg} = createHarness({markers});
+  await flushAsync();
+  const layer = svg.querySelector('#map-overlay-layer');
+  const rendered = classes(layer);
+  assert.equal(rendered.filter(value => value.startsWith('map-overlay-live-marker')).length, 4);
+  assert.ok(rendered.includes('map-overlay-live-marker map-overlay-live-marker-promoted'));
+  const labels = layer.children.filter(node => node.getAttribute('class') === 'map-overlay-live-marker-label');
+  assert.deepEqual(labels.map(node => node.textContent), ['1: trailhead','2: cache']);
+});
+
+test('accepted breadcrumb and marker rerender hooks update live overlay', async () => {
+  const {context, svg, breadcrumbs, markers} = createHarness();
+  await flushAsync();
+  assert.equal(classes(svg.querySelector('#map-overlay-layer')).includes('map-overlay-live-breadcrumb'), false);
+  run(context, `addBreadcrumb({coords:{latitude:59.9, longitude:10.7}, segment:0})`);
+  run(context, `addBreadcrumb({coords:{latitude:59.91, longitude:10.71}, segment:0})`);
+  assert.equal(breadcrumbs.length, 2);
+  assert.equal(classes(svg.querySelector('#map-overlay-layer')).filter(value => value === 'map-overlay-live-breadcrumb').length, 1);
+  markers.push({latitude:59.92, longitude:10.72, type:'note', promotedWaypointID:''});
+  run(context, `renderMarkers()`);
+  assert.ok(classes(svg.querySelector('#map-overlay-layer')).includes('map-overlay-live-marker'));
 });
 
 test('map selection clears stale path navigation result for another object', async () => {
