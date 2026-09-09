@@ -161,6 +161,8 @@ function position(latitude, longitude, accuracy = 5, time = '2026-09-09T00:00:00
   return {coords:{latitude, longitude, accuracy}, time};
 }
 
+function count(text, token) { return text.split(token).length - 1; }
+
 test('breadcrumb quality filter rejects poor accuracy and too-short movement', () => {
   const {context, liveBreadcrumbs, counts} = createHarness();
   assert.equal(run(context, `addBreadcrumb(${JSON.stringify(position(59.9139, 10.7522, 100))})`), false);
@@ -244,4 +246,58 @@ test('starting a new live session resets markers, pause state, segment and quali
   assert.equal(run(context, 'qualityRejectedAccuracy'), 0);
   assert.equal(run(context, 'qualityRejectedDistance'), 0);
   assert.equal(counts().started, 1);
+});
+
+test('GPX export preserves pause/resume boundaries as separate track segments', () => {
+  const {context, liveBreadcrumbs} = createHarness();
+  liveBreadcrumbs.push(
+    {latitude:59.0, longitude:10.0, time:'2026-09-09T00:00:00.000Z', recordingSegment:0},
+    {latitude:59.001, longitude:10.001, time:'2026-09-09T00:01:00.000Z', recordingSegment:0},
+    {latitude:60.0, longitude:11.0, time:'2026-09-09T00:10:00.000Z', recordingSegment:1},
+    {latitude:60.001, longitude:11.001, time:'2026-09-09T00:11:00.000Z', recordingSegment:1}
+  );
+  const gpx = run(context, 'breadcrumbGPX()');
+  assert.equal(count(gpx, '<trkseg>'), 2);
+  assert.equal(count(gpx, '<trkpt '), 4);
+  assert.match(gpx, /Caching Tools session - Test target/);
+});
+
+test('manual markers are exported as GPX waypoints with type and escaped note', () => {
+  const {context, liveBreadcrumbs} = createHarness();
+  liveBreadcrumbs.push({latitude:59, longitude:10, time:'2026-09-09T00:00:00.000Z', recordingSegment:0});
+  run(context, `liveMarkers.push({latitude:58.1, longitude:8.2, type:'viewpoint', note:'Rock & <tree>', time:'2026-09-09T00:02:00.000Z', promotedWaypointID:''})`);
+  const gpx = run(context, 'breadcrumbGPX()');
+  assert.match(gpx, /<wpt lat="58\.1000000" lon="8\.2000000">/);
+  assert.match(gpx, /<name>viewpoint 1<\/name>/);
+  assert.match(gpx, /<type>viewpoint<\/type>/);
+  assert.match(gpx, /<desc>Rock &amp; &lt;tree><\/desc>/);
+});
+
+test('GPX simplification is applied independently inside each recording segment', () => {
+  const {context, document, liveBreadcrumbs} = createHarness();
+  liveBreadcrumbs.push(
+    {latitude:59.0, longitude:10.0, time:'2026-09-09T00:00:00.000Z', recordingSegment:0},
+    {latitude:59.00001, longitude:10.00001, time:'2026-09-09T00:00:30.000Z', recordingSegment:0},
+    {latitude:59.001, longitude:10.001, time:'2026-09-09T00:01:00.000Z', recordingSegment:0},
+    {latitude:60.0, longitude:11.0, time:'2026-09-09T00:10:00.000Z', recordingSegment:1},
+    {latitude:60.00001, longitude:11.00001, time:'2026-09-09T00:10:30.000Z', recordingSegment:1},
+    {latitude:60.001, longitude:11.001, time:'2026-09-09T00:11:00.000Z', recordingSegment:1}
+  );
+  document.querySelector('#field-export-simplify').checked = true;
+  document.querySelector('#field-simplify-tolerance').value = '10';
+  const gpx = run(context, 'breadcrumbGPX()');
+  assert.equal(count(gpx, '<trkseg>'), 2);
+  assert.equal(count(gpx, '<trkpt '), 4);
+  assert.match(run(context, 'fieldRecordingStatus.textContent'), /6 → 4 points across 2 recording segments/);
+});
+
+test('marker-only session exports valid waypoint-only GPX instead of throwing', () => {
+  const {context} = createHarness();
+  run(context, `liveMarkers.push({latitude:58.1234567, longitude:8.7654321, type:'cache', note:'Only marker', time:'2026-09-09T00:05:00.000Z', promotedWaypointID:''})`);
+  const gpx = run(context, 'breadcrumbGPX()');
+  assert.match(gpx, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
+  assert.match(gpx, /<gpx version="1\.1" creator="Caching Tools"/);
+  assert.match(gpx, /<wpt lat="58\.1234567" lon="8\.7654321">/);
+  assert.equal(count(gpx, '<trk>'), 0);
+  assert.equal(count(gpx, '<trkseg>'), 0);
 });
