@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.49 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.50 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
 - explicit ETRS89 / UTM EPSG:25828–EPSG:25838 support with zone derived from CRS
@@ -19,9 +19,11 @@ M1.49 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - current field-navigation position marker and selected-waypoint guidance line on the SVG map
 - route/track navigation overlays for nearest path, next point, forward segment and status
 - live field-session map overlay with segment-aware breadcrumbs, visible pause gaps and manual markers
+- opt-in GPS-position viewport follow that preserves the current zoom level
+- explicit fit-current-session action covering live breadcrumbs and manual markers
 - promoted field markers are visually distinguished from ephemeral markers on the map
 - stable-ID map/list linkage and hardened dynamic browser asset loading
-- executable Node runtime tests for loader state, map overlays, live-session controls and GPX export
+- executable Node runtime tests for loader state, map overlays, live-session controls, viewport behavior and GPX export
 - quality-filtered, pause-aware live navigation with segment-aware GPX and manual field markers
 - marker-only live sessions export valid waypoint-only GPX
 - persistent mystery workspaces, final-coordinate formulas and provider-neutral puzzle helpers
@@ -29,7 +31,7 @@ M1.49 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - no external map tiles, CDN, provider account, API key or network dependency for core tools
 - one OCI-oriented Go application with local persistence under `/data`
 
-See [docs/M1_49.md](docs/M1_49.md). CRS expansion details are in [docs/M1_48.md](docs/M1_48.md), and live-session GPX qualification is in [docs/M1_47.md](docs/M1_47.md).
+See [docs/M1_50.md](docs/M1_50.md). Live-session map overlays are documented in [docs/M1_49.md](docs/M1_49.md), and CRS expansion details are in [docs/M1_48.md](docs/M1_48.md).
 
 ## Run with Go
 
@@ -108,9 +110,10 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.45: executable browser runtime qualification for waypoint/path navigation map overlays and rerender behavior
 - M1.46: executable live field-session runtime qualification for quality filters, pause/resume, markers and waypoint promotion
 - M1.47: executable live-session GPX qualification plus valid marker-only GPX export
-- M1.48: explicit ETRS89 / UTM EPSG:25828–25838 handling with conflict-safe zone semantics
+- M1.48: explicit ETRS89 / UTM EPSG:25828–EPSG:25838 handling with conflict-safe zone semantics
 - M1.49: live field-session map overlay with segment-aware breadcrumbs, pause gaps and manual marker states
-- Next: live-map viewport follow/fit behavior, additional carefully scoped CRS families, or broader browser runtime coverage
+- M1.50: opt-in live GPS viewport follow and explicit fit-current-session map control
+- Next: additional carefully scoped CRS families, field-session persistence/recovery, or broader browser runtime coverage
 
 ## License
 
