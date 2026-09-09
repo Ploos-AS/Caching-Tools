@@ -12,7 +12,8 @@ const fieldSessionBundleExport = fieldSessionBundleControls.querySelector('#fiel
 const fieldSessionBundleImport = fieldSessionBundleControls.querySelector('#field-session-bundle-import');
 const fieldSessionBundleStatus = fieldSessionBundleControls.querySelector('#field-session-bundle-status');
 const fieldSessionBundleKind = 'caching-tools.field-session';
-const fieldSessionBundleVersion = 1;
+const fieldSessionBundleVersion = 2;
+const fieldSessionBundleMinVersion = 1;
 const fieldSessionBundleMaxBytes = 4 * 1024 * 1024;
 
 function portableFieldSessionBundle() {
@@ -23,27 +24,72 @@ function portableFieldSessionBundle() {
     session: {
       breadcrumbs: liveBreadcrumbs.map(item => ({...item})),
       markers: liveMarkers.map(item => ({...item})),
-      paused: Boolean(breadcrumbRecordingPaused),
-      segmentID: Math.max(0, Number.isInteger(recordingSegmentID) ? recordingSegmentID : 0)
+      recording: {
+        paused: Boolean(breadcrumbRecordingPaused),
+        segmentID: Math.max(0, Number.isInteger(recordingSegmentID) ? recordingSegmentID : 0)
+      }
     },
     metadata: {
       target: fieldForm.elements['target-id']?.selectedOptions?.[0]?.textContent || '',
-      generator: 'Caching Tools M1.53'
+      generator: 'Caching Tools M1.54'
     }
   };
 }
 
+function migrateFieldSessionBundleV1ToV2(value) {
+  if (!value?.session) return null;
+  return {
+    ...value,
+    version: 2,
+    session: {
+      breadcrumbs: value.session.breadcrumbs,
+      markers: value.session.markers,
+      recording: {
+        paused: Boolean(value.session.paused),
+        segmentID: Math.max(0, Number.isInteger(value.session.segmentID) ? value.session.segmentID : 0)
+      }
+    },
+    metadata: {
+      ...(value.metadata || {}),
+      migratedFromVersion: 1
+    }
+  };
+}
+
+const fieldSessionBundleMigrations = new Map([
+  [1, migrateFieldSessionBundleV1ToV2]
+]);
+
+function migratePortableFieldSessionBundle(value) {
+  if (!value || value.kind !== fieldSessionBundleKind || !Number.isInteger(value.version)) return null;
+  if (value.version < fieldSessionBundleMinVersion) return null;
+  if (value.version > fieldSessionBundleVersion) {
+    throw new Error(`Field-session bundle version ${value.version} is newer than supported version ${fieldSessionBundleVersion}.`);
+  }
+  let migrated = value;
+  while (migrated.version < fieldSessionBundleVersion) {
+    const migration = fieldSessionBundleMigrations.get(migrated.version);
+    if (!migration) throw new Error(`No migration path from field-session bundle version ${migrated.version}.`);
+    migrated = migration(migrated);
+    if (!migrated) return null;
+  }
+  return migrated;
+}
+
 function normalizePortableFieldSessionBundle(value) {
-  if (!value || value.kind !== fieldSessionBundleKind || value.version !== fieldSessionBundleVersion || !value.session) return null;
-  const session = value.session;
-  if (!Array.isArray(session.breadcrumbs) || !Array.isArray(session.markers)) return null;
+  const migrated = migratePortableFieldSessionBundle(value);
+  if (!migrated || migrated.version !== fieldSessionBundleVersion || !migrated.session) return null;
+  const session = migrated.session;
+  if (!Array.isArray(session.breadcrumbs) || !Array.isArray(session.markers) || !session.recording) return null;
   if (session.breadcrumbs.length > 10000 || session.markers.length > 500) return null;
   if (!session.breadcrumbs.every(validRecoveredPoint) || !session.markers.every(validRecoveredPoint)) return null;
   return {
     breadcrumbs: session.breadcrumbs.map(item => ({...item})),
     markers: session.markers.map(item => ({...item})),
-    paused: Boolean(session.paused),
-    segmentID: Math.max(0, Number.isInteger(session.segmentID) ? session.segmentID : 0)
+    paused: Boolean(session.recording.paused),
+    segmentID: Math.max(0, Number.isInteger(session.recording.segmentID) ? session.recording.segmentID : 0),
+    bundleVersion: migrated.version,
+    migratedFromVersion: Number.isInteger(migrated.metadata?.migratedFromVersion) ? migrated.metadata.migratedFromVersion : null
   };
 }
 
@@ -61,7 +107,8 @@ function importPortableFieldSessionBundle(value) {
   persistFieldSession();
   if (typeof window.renderMapOverlays === 'function') window.renderMapOverlays();
   fieldRecordingStatus.textContent = `Imported ${liveBreadcrumbs.length} breadcrumbs and ${liveMarkers.length} markers. Live GPS remains stopped until explicitly started.`;
-  fieldSessionBundleStatus.textContent = 'Field-session bundle imported successfully.';
+  const migrationNote = session.migratedFromVersion ? ` Migrated bundle v${session.migratedFromVersion} to v${session.bundleVersion}.` : '';
+  fieldSessionBundleStatus.textContent = `Field-session bundle imported successfully.${migrationNote}`;
   return session;
 }
 
@@ -79,7 +126,7 @@ function downloadPortableFieldSessionBundle() {
   link.download = `caching-tools-field-session-${new Date().toISOString().replaceAll(':','-')}.json`;
   link.click();
   URL.revokeObjectURL(url);
-  fieldSessionBundleStatus.textContent = `Exported ${bundle.session.breadcrumbs.length} breadcrumbs and ${bundle.session.markers.length} markers.`;
+  fieldSessionBundleStatus.textContent = `Exported v${bundle.version} bundle with ${bundle.session.breadcrumbs.length} breadcrumbs and ${bundle.session.markers.length} markers.`;
   return true;
 }
 
@@ -105,4 +152,4 @@ fieldSessionBundleImport?.addEventListener('change', async () => {
 window.portableFieldSessionBundle = portableFieldSessionBundle;
 window.importPortableFieldSessionBundle = importPortableFieldSessionBundle;
 const fieldSessionBundleFooter = document.querySelector('footer');
-if (fieldSessionBundleFooter) fieldSessionBundleFooter.textContent = 'Caching Tools M1.53';
+if (fieldSessionBundleFooter) fieldSessionBundleFooter.textContent = 'Caching Tools M1.54';
