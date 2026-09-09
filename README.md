@@ -6,41 +6,28 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.47 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.48 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
+- explicit ETRS89 / UTM EPSG:25828–EPSG:25838 support with zone derived from CRS
+- explicit CRS/zone conflicts are rejected instead of silently reinterpreted
 - distance, bearing, projection and coordinate-intersection tools
 - persistent local waypoints plus GPX 1.1 import/export
 - persistent routes/tracks with statistics and geometry editing
 - interactive offline SVG map with pan, zoom, selection and visual route/track editing
 - optional local map overlays for waypoint labels and configurable waypoint-radius rings
 - current field-navigation position marker and selected-waypoint guidance line on the SVG map
-- selected waypoint arrival-radius overlay tied to the field-navigation arrival-radius setting
-- route/track navigation overlays for current-to-nearest-path, nearest point, next point and forward segment
-- route/track overlay status for `on-route`, `off-route`, `next-point-arrival` and `arrived`
-- map overlay readout for cross-track distance, remaining distance and forward bearing
-- stable-ID map/list linkage: map selections resolve list rows by object kind + local ID, not display names or rendered text
-- waypoint/path list rows are automatically re-annotated after CRUD rerenders, so duplicate names cannot select the wrong row
-- hardened dynamic browser asset chain with readiness sentinels, idempotent continuation and failed-load retry
-- executable Node runtime tests for loader state transitions, stable-ID map/list selection and map overlays
-- executable live field-session runtime tests for quality filtering, pause/resume segmentation, manual markers and waypoint promotion
-- executable live-session GPX runtime tests for multi-segment tracks, marker waypoints, per-segment simplification and marker-only export
-- marker-only live sessions now export valid waypoint-only GPX instead of failing because no breadcrumbs exist
-- browser runtime qualification uses Node's built-in `node:test` and small local fake-DOM harnesses; no npm dependencies are required
-- field navigation to waypoints and nearest/cross-track/progress guidance for saved paths
-- live browser geolocation navigation with quality-filtered, segment-aware breadcrumbs
-- explicit GPX export of live sessions and promotion of manual field markers to waypoints
+- route/track navigation overlays for nearest path, next point, forward segment and status
+- stable-ID map/list linkage and hardened dynamic browser asset loading
+- executable Node runtime tests for loader state, map overlays, live-session controls and GPX export
+- quality-filtered, pause-aware live navigation with segment-aware GPX and manual field markers
+- marker-only live sessions export valid waypoint-only GPX
 - persistent mystery workspaces, final-coordinate formulas and provider-neutral puzzle helpers
-- persistent local field notes/logbook with search/filter/export and map waypoint linkage
-- local field-note attachments with 10 MiB limit, type validation, safe download/preview and cascade cleanup
-- attachment-aware ZIP backup/restore with validation, new IDs and rollback semantics
-- SHA-256 attachment metadata plus explicit read-only integrity verification
-- local attachment integrity UI/report with `ok`, `mismatch`, `missing` and `unrecorded` states
+- persistent local field notes/logbook with search/filter/export, attachments, backup/restore and integrity verification
 - no external map tiles, CDN, provider account, API key or network dependency for core tools
 - one OCI-oriented Go application with local persistence under `/data`
-- Go unit, HTTP/static-asset tests and browser-side runtime tests
 
-See [docs/M1_47.md](docs/M1_47.md). Live field-session runtime qualification details are in [docs/M1_46.md](docs/M1_46.md).
+See [docs/M1_48.md](docs/M1_48.md). Live-session GPX qualification details are in [docs/M1_47.md](docs/M1_47.md).
 
 ## Run with Go
 
@@ -119,7 +106,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.45: executable browser runtime qualification for waypoint/path navigation map overlays and rerender behavior
 - M1.46: executable live field-session runtime qualification for quality filters, pause/resume, markers and waypoint promotion
 - M1.47: executable live-session GPX qualification plus valid marker-only GPX export
-- Next: additional well-defined CRS families, field-navigation map polish, or broader browser runtime coverage
+- M1.48: explicit ETRS89 / UTM EPSG:25828–25838 handling with conflict-safe zone semantics
+- Next: field-navigation map polish, additional carefully scoped CRS families, or broader browser runtime coverage
 
 ## License
 
