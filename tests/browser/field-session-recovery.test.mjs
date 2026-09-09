@@ -29,6 +29,9 @@ class MemoryStorage {
   setItem(key,value){this.values.set(key,String(value));}
   removeItem(key){this.values.delete(key);}
 }
+class FullStorage extends MemoryStorage {
+  setItem(){throw new Error('QuotaExceededError');}
+}
 
 function haversine(a,b){const rad=value=>value*Math.PI/180,dLat=rad(b.latitude-a.latitude),dLon=rad(b.longitude-a.longitude),lat1=rad(a.latitude),lat2=rad(b.latitude);const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;return 6371008.8*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
 
@@ -63,20 +66,47 @@ test('pause, resume and marker mutations update recovery state',()=>{
   run(context,`fieldMarkerType.value='cache'; addManualMarker()`);snapshot=JSON.parse(storage.getItem('caching-tools.field-session.v1'));assert.equal(snapshot.markers.length,1);assert.equal(snapshot.markers[0].type,'cache');
 });
 
-test('reload detects recovery but does not automatically restart GPS or restore points',()=>{
-  const seed={version:1,savedAt:'2026-09-09T00:10:00.000Z',breadcrumbs:[{latitude:59.9,longitude:10.7,time:'2026-09-09T00:00:00.000Z',recordingSegment:0}],markers:[{latitude:59.91,longitude:10.71,time:'2026-09-09T00:01:00.000Z',type:'note',note:'x',promotedWaypointID:''}],paused:true,segmentID:2};
+test('reload detects fresh recovery but does not automatically restart GPS or restore points',()=>{
+  const seed={version:1,savedAt:new Date().toISOString(),breadcrumbs:[{latitude:59.9,longitude:10.7,time:'2026-09-09T00:00:00.000Z',recordingSegment:0}],markers:[{latitude:59.91,longitude:10.71,time:'2026-09-09T00:01:00.000Z',type:'note',note:'x',promotedWaypointID:''}],paused:true,segmentID:2};
   const storage=new MemoryStorage({'caching-tools.field-session.v1':JSON.stringify(seed)}),{context,liveBreadcrumbs,counts}=createHarness(storage);
   assert.equal(liveBreadcrumbs.length,0);assert.equal(run(context,'liveMarkers.length'),0);assert.equal(counts().started,0);assert.equal(run(context,'fieldSessionRestore.disabled'),false);assert.match(run(context,'fieldSessionRecoveryStatus.textContent'),/1 breadcrumb, 1 marker/);
 });
 
+test('recovery status presents a human-readable age',()=>{
+  const {context}=createHarness();
+  assert.equal(run(context,`formatRecoveryAge('2026-09-09T10:00:00.000Z', Date.parse('2026-09-09T10:12:00.000Z'))`),'12 minutes ago');
+  assert.equal(run(context,`formatRecoveryAge('2026-09-09T08:00:00.000Z', Date.parse('2026-09-09T10:00:00.000Z'))`),'2 hours ago');
+  assert.equal(run(context,`formatRecoveryAge('2026-09-07T10:00:00.000Z', Date.parse('2026-09-09T10:00:00.000Z'))`),'2 days ago');
+});
+
+test('recovery older than seven days is discarded and cannot be restored',()=>{
+  const seed={version:1,savedAt:'2026-08-20T00:00:00.000Z',breadcrumbs:[{latitude:59.9,longitude:10.7,time:'2026-08-20T00:00:00.000Z',recordingSegment:0}],markers:[],paused:false,segmentID:0};
+  const storage=new MemoryStorage({'caching-tools.field-session.v1':JSON.stringify(seed)}),{context,storage:actual}=createHarness(storage);
+  assert.equal(run(context,'recoveredSession'),null);assert.equal(actual.getItem('caching-tools.field-session.v1'),null);assert.equal(run(context,'fieldSessionRestore.disabled'),true);assert.match(run(context,'fieldSessionRecoveryStatus.textContent'),/older than 7 days/);
+});
+
 test('explicit restore recovers breadcrumbs markers pause and segment without starting GPS',()=>{
-  const seed={version:1,savedAt:'2026-09-09T00:10:00.000Z',breadcrumbs:[{latitude:59.9,longitude:10.7,time:'2026-09-09T00:00:00.000Z',recordingSegment:0}],markers:[{latitude:59.91,longitude:10.71,time:'2026-09-09T00:01:00.000Z',type:'note',note:'x',promotedWaypointID:''}],paused:true,segmentID:2};
+  const seed={version:1,savedAt:new Date().toISOString(),breadcrumbs:[{latitude:59.9,longitude:10.7,time:'2026-09-09T00:00:00.000Z',recordingSegment:0}],markers:[{latitude:59.91,longitude:10.71,time:'2026-09-09T00:01:00.000Z',type:'note',note:'x',promotedWaypointID:''}],paused:true,segmentID:2};
   const storage=new MemoryStorage({'caching-tools.field-session.v1':JSON.stringify(seed)}),{context,liveBreadcrumbs,counts}=createHarness(storage);
   assert.equal(run(context,'restoreRecoveredSession()'),true);assert.equal(liveBreadcrumbs.length,1);assert.equal(run(context,'liveMarkers.length'),1);assert.equal(run(context,'breadcrumbRecordingPaused'),true);assert.equal(run(context,'recordingSegmentID'),2);assert.equal(counts().started,0);assert.equal(counts().overlayRenders,1);assert.match(run(context,'fieldRecordingStatus.textContent'),/Live GPS remains stopped/);
 });
 
+test('storage quota failure is non-fatal and visible to the user',()=>{
+  const {context}=createHarness(new FullStorage());
+  assert.equal(run(context,`addBreadcrumb(${JSON.stringify(position(59.9139,10.7522,'2026-09-09T00:00:00.000Z'))})`),true);
+  assert.match(run(context,'fieldSessionRecoveryStatus.textContent'),/storage is full or unavailable/);
+  assert.equal(run(context,'liveBreadcrumbs.length'),1);
+});
+
+test('oversized recovery snapshot is rejected before storage write',()=>{
+  const {context}=createHarness();
+  run(context,`liveMarkers.push({latitude:59,longitude:10,time:new Date().toISOString(),type:'note',note:'x'.repeat(sessionRecoveryMaxBytes + 1),promotedWaypointID:''})`);
+  assert.equal(run(context,'persistFieldSession()'),false);
+  assert.match(run(context,'fieldSessionRecoveryStatus.textContent'),/exceeded 2 MiB/);
+});
+
 test('discard removes recovery and a new live session starts clean',()=>{
-  const seed={version:1,savedAt:'2026-09-09T00:10:00.000Z',breadcrumbs:[{latitude:59.9,longitude:10.7,time:'2026-09-09T00:00:00.000Z'}],markers:[],paused:false,segmentID:0};
+  const seed={version:1,savedAt:new Date().toISOString(),breadcrumbs:[{latitude:59.9,longitude:10.7,time:'2026-09-09T00:00:00.000Z'}],markers:[],paused:false,segmentID:0};
   const storage=new MemoryStorage({'caching-tools.field-session.v1':JSON.stringify(seed)}),{context,storage:actual,counts}=createHarness(storage);
   run(context,'discardRecoveredSession()');assert.equal(actual.getItem('caching-tools.field-session.v1'),null);assert.equal(run(context,'fieldSessionRestore.disabled'),true);
   run(context,`liveBreadcrumbs.push({latitude:1,longitude:2,time:'2026-09-09T00:00:00.000Z'}); liveMarkers.push({latitude:1,longitude:2,time:'2026-09-09T00:00:00.000Z',type:'note'}); startLiveNavigation()`);
