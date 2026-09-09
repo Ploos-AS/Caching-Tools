@@ -18,7 +18,11 @@ class FakeElement {
 class FakeDocument {
   constructor() { this.nodes=new Map(); }
   register(id,node=new FakeElement('div',this)) { node.id=id; node.document=this; this.nodes.set(id,node); return node; }
-  querySelector(selector) { return selector.startsWith('#') ? this.nodes.get(selector.slice(1)) || null : null; }
+  querySelector(selector) {
+    if (selector.startsWith('#')) return this.nodes.get(selector.slice(1)) || null;
+    if (selector === 'footer') return this.nodes.get('footer') || null;
+    return null;
+  }
   createElement(tag) { return new FakeElement(tag,this); }
 }
 
