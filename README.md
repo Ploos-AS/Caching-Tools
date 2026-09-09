@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.45 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.46 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
 - distance, bearing, projection and coordinate-intersection tools
@@ -22,8 +22,8 @@ M1.45 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - stable-ID map/list linkage: map selections resolve list rows by object kind + local ID, not display names or rendered text
 - waypoint/path list rows are automatically re-annotated after CRUD rerenders, so duplicate names cannot select the wrong row
 - hardened dynamic browser asset chain with readiness sentinels, idempotent continuation and failed-load retry
-- executable Node runtime tests for loader state transitions, retry, duplicate-safe map/list selection and window-load orchestration
-- executable runtime tests for waypoint guidance overlays, route/track cross-track/next-point overlays and stale-overlay clearing
+- executable Node runtime tests for loader state transitions, stable-ID map/list selection and map overlays
+- executable live field-session runtime tests for quality filtering, pause/resume segmentation, manual markers and waypoint promotion
 - browser runtime qualification uses Node's built-in `node:test` and small local fake-DOM harnesses; no npm dependencies are required
 - field navigation to waypoints and nearest/cross-track/progress guidance for saved paths
 - live browser geolocation navigation with quality-filtered, segment-aware breadcrumbs
@@ -38,7 +38,7 @@ M1.45 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - one OCI-oriented Go application with local persistence under `/data`
 - Go unit, HTTP/static-asset tests and browser-side runtime tests
 
-See [docs/M1_45.md](docs/M1_45.md). Loader/list runtime qualification details are in [docs/M1_44.md](docs/M1_44.md).
+See [docs/M1_46.md](docs/M1_46.md). Map-overlay runtime qualification details are in [docs/M1_45.md](docs/M1_45.md).
 
 ## Run with Go
 
@@ -115,7 +115,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.43: idempotent dynamic asset loading with readiness detection and failed-load retry
 - M1.44: executable browser-side runtime qualification for dynamic UI orchestration and stable-ID selection
 - M1.45: executable browser runtime qualification for waypoint/path navigation map overlays and rerender behavior
-- Next: additional well-defined CRS families, field-navigation map polish, or broader runtime coverage for live session controls
+- M1.46: executable live field-session runtime qualification for quality filters, pause/resume, markers and waypoint promotion
+- Next: additional well-defined CRS families, GPX live-session runtime qualification, or field-navigation map polish
 
 ## License
 
