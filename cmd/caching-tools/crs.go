@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 )
 
@@ -52,6 +53,9 @@ func convertCRS(req crsRequest) (crsResponse, error) {
 		return crsResponse{}, errors.New("source and target CRS are required")
 	}
 
+	sourceZone, sourceIsETRSUTM := etrs89UTMZoneFromCRS(source)
+	targetZone, targetIsETRSUTM := etrs89UTMZoneFromCRS(target)
+
 	switch {
 	case (source == "EPSG:4326" || source == "EPSG:4258") && (target == "EPSG:4326" || target == "EPSG:4258"):
 		lat, lon, err := parsePoint(coordinateRequest{Latitude: req.Latitude, Longitude: req.Longitude})
@@ -62,18 +66,19 @@ func convertCRS(req crsRequest) (crsResponse, error) {
 		p := point(lat, lon)
 		return crsResponse{Source: source, Target: target, Point: &p, Approximate: approx, Note: note}, nil
 
-	case (source == "EPSG:4326" || source == "EPSG:4258") && target == "ETRS89-UTM":
+	case (source == "EPSG:4326" || source == "EPSG:4258") && (target == "ETRS89-UTM" || targetIsETRSUTM):
 		lat, lon, err := parsePoint(coordinateRequest{Latitude: req.Latitude, Longitude: req.Longitude})
 		if err != nil { return crsResponse{}, err }
-		zone, err := validateETRS89Zone(req.Zone)
+		zone, err := resolveETRS89Zone(req.Zone, targetZone, targetIsETRSUTM)
 		if err != nil { return crsResponse{}, err }
 		e, n, err := latLonToUTMZone(lat, lon, zone, grs80Ellipsoid)
 		if err != nil { return crsResponse{}, err }
-		grid := crsGrid{CRS: fmt.Sprintf("EPSG:%d", 25800+zone), Zone: zone, Hemisphere: "N", Easting: e, Northing: n}
-		return crsResponse{Source: source, Target: grid.CRS, Grid: &grid, Approximate: source == "EPSG:4326", Note: etrsApproxNote(source)}, nil
+		gridCRS := etrs89UTMCRS(zone)
+		grid := crsGrid{CRS: gridCRS, Zone: zone, Hemisphere: "N", Easting: e, Northing: n}
+		return crsResponse{Source: source, Target: gridCRS, Grid: &grid, Approximate: source == "EPSG:4326", Note: etrsApproxNote(source)}, nil
 
-	case source == "ETRS89-UTM" && (target == "EPSG:4258" || target == "EPSG:4326"):
-		zone, err := validateETRS89Zone(req.Zone)
+	case (source == "ETRS89-UTM" || sourceIsETRSUTM) && (target == "EPSG:4258" || target == "EPSG:4326"):
+		zone, err := resolveETRS89Zone(req.Zone, sourceZone, sourceIsETRSUTM)
 		if err != nil { return crsResponse{}, err }
 		if strings.ToUpper(strings.TrimSpace(req.Hemisphere)) != "N" && strings.TrimSpace(req.Hemisphere) != "" {
 			return crsResponse{}, errors.New("ETRS89 / UTM zones use northern hemisphere coordinates")
@@ -81,7 +86,7 @@ func convertCRS(req crsRequest) (crsResponse, error) {
 		lat, lon, err := utmZoneToLatLon(zone, "N", req.Easting, req.Northing, grs80Ellipsoid)
 		if err != nil { return crsResponse{}, err }
 		p := point(lat, lon)
-		return crsResponse{Source: fmt.Sprintf("EPSG:%d", 25800+zone), Target: target, Point: &p, Approximate: target == "EPSG:4326", Note: etrsApproxNote(target)}, nil
+		return crsResponse{Source: etrs89UTMCRS(zone), Target: target, Point: &p, Approximate: target == "EPSG:4326", Note: etrsApproxNote(target)}, nil
 	default:
 		return crsResponse{}, fmt.Errorf("unsupported CRS conversion %q -> %q", req.Source, req.Target)
 	}
@@ -94,9 +99,35 @@ func normalizeCRS(value string) string {
 	case "ETRS89", "ETRS 89", "EPSG:4258": return "EPSG:4258"
 	case "ETRS89-UTM", "ETRS89 / UTM", "ETRS89 UTM": return "ETRS89-UTM"
 	default:
-		if strings.HasPrefix(v, "EPSG:258") { return "ETRS89-UTM" }
+		if zone, ok := etrs89UTMZoneFromCRS(v); ok { return etrs89UTMCRS(zone) }
 		return v
 	}
+}
+
+func etrs89UTMCRS(zone int) string {
+	return fmt.Sprintf("EPSG:%d", 25800+zone)
+}
+
+func etrs89UTMZoneFromCRS(crs string) (int, bool) {
+	v := strings.ToUpper(strings.TrimSpace(crs))
+	if !strings.HasPrefix(v, "EPSG:258") || len(v) != len("EPSG:25832") {
+		return 0, false
+	}
+	code, err := strconv.Atoi(strings.TrimPrefix(v, "EPSG:"))
+	if err != nil { return 0, false }
+	zone := code - 25800
+	if zone < 28 || zone > 38 { return 0, false }
+	return zone, true
+}
+
+func resolveETRS89Zone(requested, explicit int, hasExplicit bool) (int, error) {
+	if hasExplicit {
+		if requested != 0 && requested != explicit {
+			return 0, fmt.Errorf("zone %d conflicts with explicit CRS %s", requested, etrs89UTMCRS(explicit))
+		}
+		return explicit, nil
+	}
+	return validateETRS89Zone(requested)
 }
 
 func validateETRS89Zone(zone int) (int, error) {
