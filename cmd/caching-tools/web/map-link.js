@@ -53,89 +53,117 @@ document.addEventListener('caching-tools:map-select', (event) => {
   void selectLinkedMapRow(kind, id);
 });
 
+function runLoaderNext(next) {
+  if (typeof next === 'function') queueMicrotask(next);
+}
+
+function ensureDynamicAsset({dataAttribute, src, readySelector, next}) {
+  if (readySelector && document.querySelector(readySelector)) {
+    runLoaderNext(next);
+    return;
+  }
+
+  const selector = `script[${dataAttribute}]`;
+  let script = document.querySelector(selector);
+  if (script) {
+    if (script.dataset.loaderState === 'loaded') {
+      runLoaderNext(next);
+      return;
+    }
+    const continueOnce = () => {
+      script.dataset.loaderState = 'loaded';
+      runLoaderNext(next);
+    };
+    script.addEventListener('load', continueOnce, {once:true});
+    return;
+  }
+
+  script = document.createElement('script');
+  script.src = src;
+  script.setAttribute(dataAttribute, 'true');
+  script.dataset.loaderState = 'loading';
+  script.addEventListener('load', () => {
+    script.dataset.loaderState = 'loaded';
+    runLoaderNext(next);
+  }, {once:true});
+  script.addEventListener('error', () => {
+    script.dataset.loaderState = 'failed';
+  }, {once:true});
+  document.body.append(script);
+}
+
 function loadFieldNoteIntegrity() {
-  if (document.querySelector('script[data-field-note-integrity]')) return;
-  const integrity = document.createElement('script');
-  integrity.src = '/field-note-integrity.js';
-  integrity.dataset.fieldNoteIntegrity = 'true';
-  document.body.append(integrity);
+  ensureDynamicAsset({
+    dataAttribute:'data-field-note-integrity',
+    src:'/field-note-integrity.js',
+    readySelector:'#field-note-attachment-integrity'
+  });
 }
 
 function loadFieldNoteArchive() {
-  const existing = document.querySelector('script[data-field-note-archive]');
-  if (existing) { existing.addEventListener('load', loadFieldNoteIntegrity, {once:true}); return; }
-  const archive = document.createElement('script');
-  archive.src = '/field-note-archive.js';
-  archive.dataset.fieldNoteArchive = 'true';
-  archive.addEventListener('load', loadFieldNoteIntegrity, {once:true});
-  document.body.append(archive);
+  ensureDynamicAsset({
+    dataAttribute:'data-field-note-archive',
+    src:'/field-note-archive.js',
+    readySelector:'#field-note-archive',
+    next:loadFieldNoteIntegrity
+  });
 }
 
 function loadFieldNoteAttachmentsAsset() {
-  const existing = document.querySelector('script[data-field-note-attachments]');
-  if (existing) { existing.addEventListener('load', loadFieldNoteArchive, {once:true}); return; }
-  const attachments = document.createElement('script');
-  attachments.src = '/field-note-attachments.js';
-  attachments.dataset.fieldNoteAttachments = 'true';
-  attachments.addEventListener('load', loadFieldNoteArchive, {once:true});
-  document.body.append(attachments);
+  ensureDynamicAsset({
+    dataAttribute:'data-field-note-attachments',
+    src:'/field-note-attachments.js',
+    readySelector:'#field-note-attachments',
+    next:loadFieldNoteArchive
+  });
 }
 
 function loadMapLogbook() {
-  const existing = document.querySelector('script[data-map-logbook]');
-  if (existing) { existing.addEventListener('load', loadFieldNoteAttachmentsAsset, {once:true}); return; }
-  const mapLogbook = document.createElement('script');
-  mapLogbook.src = '/map-logbook.js';
-  mapLogbook.dataset.mapLogbook = 'true';
-  mapLogbook.addEventListener('load', loadFieldNoteAttachmentsAsset, {once:true});
-  document.body.append(mapLogbook);
+  ensureDynamicAsset({
+    dataAttribute:'data-map-logbook',
+    src:'/map-logbook.js',
+    readySelector:'#map-logbook',
+    next:loadFieldNoteAttachmentsAsset
+  });
 }
 
 function loadFieldNoteDashboard() {
-  const existing = document.querySelector('script[data-field-note-dashboard]');
-  if (existing) { existing.addEventListener('load', loadMapLogbook, {once:true}); return; }
-  const dashboard = document.createElement('script');
-  dashboard.src = '/field-notes-dashboard.js';
-  dashboard.dataset.fieldNoteDashboard = 'true';
-  dashboard.addEventListener('load', loadMapLogbook, {once:true});
-  document.body.append(dashboard);
+  ensureDynamicAsset({
+    dataAttribute:'data-field-note-dashboard',
+    src:'/field-notes-dashboard.js',
+    readySelector:'#field-note-dashboard',
+    next:loadMapLogbook
+  });
 }
 
 function loadFieldNotesAsset() {
-  if (document.querySelector('#field-notes')) { loadFieldNoteDashboard(); return; }
-  const existing = document.querySelector('script[data-field-notes]');
-  if (existing) { existing.addEventListener('load', loadFieldNoteDashboard, {once:true}); return; }
-  const notes = document.createElement('script');
-  notes.src = '/field-notes.js';
-  notes.dataset.fieldNotes = 'true';
-  notes.addEventListener('load', loadFieldNoteDashboard, {once:true});
-  document.body.append(notes);
+  ensureDynamicAsset({
+    dataAttribute:'data-field-notes',
+    src:'/field-notes.js',
+    readySelector:'#field-notes',
+    next:loadFieldNoteDashboard
+  });
 }
 
 function loadFieldSession() {
-  const existing = document.querySelector('script[data-field-session]');
-  if (existing) { existing.addEventListener('load', loadFieldNotesAsset, {once:true}); return; }
-  const session = document.createElement('script');
-  session.src = '/field-session.js';
-  session.dataset.fieldSession = 'true';
-  session.addEventListener('load', loadFieldNotesAsset, {once:true});
-  document.body.append(session);
+  ensureDynamicAsset({
+    dataAttribute:'data-field-session',
+    src:'/field-session.js',
+    readySelector:'#field-session-controls',
+    next:loadFieldNotesAsset
+  });
 }
 
 window.addEventListener('load', () => {
-  const existingQuality = document.querySelector('script[data-field-quality]');
-  if (!existingQuality) {
-    const quality = document.createElement('script');
-    quality.src = '/field-quality.js';
-    quality.dataset.fieldQuality = 'true';
-    quality.addEventListener('load', loadFieldSession, {once:true});
-    document.body.append(quality);
-  } else if (existingQuality.dataset.loaded === 'true') loadFieldSession();
-  else existingQuality.addEventListener('load', loadFieldSession, {once:true});
-  if (!document.querySelector('script[data-map-editor]')) {
-    const script = document.createElement('script');
-    script.src = '/map-editor.js';
-    script.dataset.mapEditor = 'true';
-    document.body.append(script);
-  }
+  ensureDynamicAsset({
+    dataAttribute:'data-field-quality',
+    src:'/field-quality.js',
+    readySelector:'#field-quality-controls',
+    next:loadFieldSession
+  });
+  ensureDynamicAsset({
+    dataAttribute:'data-map-editor',
+    src:'/map-editor.js',
+    readySelector:'#map-path-editor'
+  });
 });
