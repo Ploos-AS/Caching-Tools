@@ -42,7 +42,8 @@ func TestFieldNavigationUIAssets(t *testing.T) {
 	bundle:=httptest.NewRecorder(); h.ServeHTTP(bundle,httptest.NewRequest(http.MethodGet,"/field-session-bundle.js",nil))
 	if bundle.Code!=http.StatusOK{t.Fatalf("bundle asset status=%d",bundle.Code)}
 	for _,want:=range []string{
-		"Export session JSON","Import session JSON","caching-tools.field-session","portableFieldSessionBundle","normalizePortableFieldSessionBundle","importPortableFieldSessionBundle","importPortableFieldSessionFile","fieldSessionBundleMaxBytes","Live GPS remains stopped until explicitly started","application/json","URL.createObjectURL","Caching Tools M1.53",
+		"Export session JSON","Import session JSON","caching-tools.field-session","portableFieldSessionBundle","normalizePortableFieldSessionBundle","importPortableFieldSessionBundle","importPortableFieldSessionFile","fieldSessionBundleMaxBytes","Live GPS remains stopped until explicitly started","application/json","URL.createObjectURL",
+		"fieldSessionBundleVersion = 2","fieldSessionBundleMinVersion = 1","migrateFieldSessionBundleV1ToV2","fieldSessionBundleMigrations","migratePortableFieldSessionBundle","newer than supported version","No migration path","migratedFromVersion","Caching Tools M1.54",
 	} { if !strings.Contains(bundle.Body.String(),want){t.Fatalf("missing %q from field-session-bundle.js",want)} }
 
 	notes:=httptest.NewRecorder(); h.ServeHTTP(notes,httptest.NewRequest(http.MethodGet,"/field-notes.js",nil))
