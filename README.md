@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.53 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.54 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
 - explicit ETRS89 / UTM EPSG:25828–EPSG:25838 support with zone derived from CRS
@@ -24,10 +24,12 @@ M1.53 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - browser-local field-session crash/refresh recovery with explicit Restore/Discard controls
 - recovery snapshots expire after seven days, report age, and handle quota/storage failures safely
 - portable versioned field-session JSON export/import preserving breadcrumbs, markers, pause and segment state
+- current field-session bundle schema v2 with deterministic v1 → v2 migration
+- future bundle versions are rejected explicitly instead of being silently misread
 - portable bundle import never automatically starts browser geolocation
 - promoted field markers are visually distinguished from ephemeral markers on the map
 - stable-ID map/list linkage and hardened dynamic browser asset loading
-- executable Node runtime tests for loader state, map overlays, live-session controls, recovery, portable bundles, viewport behavior and GPX export
+- executable Node runtime tests for loader state, map overlays, live-session controls, recovery, portable bundles, migrations, viewport behavior and GPX export
 - quality-filtered, pause-aware live navigation with segment-aware GPX and manual field markers
 - marker-only live sessions export valid waypoint-only GPX
 - persistent mystery workspaces, final-coordinate formulas and provider-neutral puzzle helpers
@@ -35,7 +37,7 @@ M1.53 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - no external map tiles, CDN, provider account, API key or network dependency for core tools
 - one OCI-oriented Go application with local persistence under `/data`
 
-See [docs/M1_53.md](docs/M1_53.md). Recovery hardening is documented in [docs/M1_52.md](docs/M1_52.md), with recovery introduced in [docs/M1_51.md](docs/M1_51.md).
+See [docs/M1_54.md](docs/M1_54.md). Portable field-session bundles are introduced in [docs/M1_53.md](docs/M1_53.md), and recovery hardening is documented in [docs/M1_52.md](docs/M1_52.md).
 
 ## Run with Go
 
@@ -120,7 +122,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.51: browser-local field-session crash/refresh recovery with explicit restore/discard semantics
 - M1.52: recovery expiry, human-readable age, snapshot ceiling and quota/storage failure hardening
 - M1.53: portable versioned field-session JSON export/import preserving full session semantics
-- Next: additional carefully scoped CRS families, portable bundle forward-compatibility/migrations, or broader browser runtime coverage
+- M1.54: bundle schema v2 plus explicit sequential migrations and future-version rejection
+- Next: additional carefully scoped CRS families, bundle integrity/checksums, or broader browser runtime coverage
 
 ## License
 
