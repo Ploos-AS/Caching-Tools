@@ -6,7 +6,7 @@ Caching Tools is aimed at people who use GPS as a hobby: geocachers, waypoint an
 
 ## Current status
 
-M1.42 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
+M1.43 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation and geocaching puzzle toolbox. Highlights include:
 
 - DD / DMM / DMS, WGS84/UTM/MGRS and WGS84/ETRS89 coordinate tools
 - distance, bearing, projection and coordinate-intersection tools
@@ -21,6 +21,9 @@ M1.42 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - map overlay readout for cross-track distance, remaining distance and forward bearing
 - stable-ID map/list linkage: map selections resolve list rows by object kind + local ID, not display names or rendered text
 - waypoint/path list rows are automatically re-annotated after CRUD rerenders, so duplicate names cannot select the wrong row
+- hardened dynamic browser asset chain with readiness sentinels and idempotent continuation
+- already-loaded field/map scripts no longer stall later loaders because a late `load` listener missed the original event
+- failed dynamic loads are marked and can be retried on a later loader request
 - field navigation to waypoints and nearest/cross-track/progress guidance for saved paths
 - live browser geolocation navigation with quality-filtered, segment-aware breadcrumbs
 - explicit GPX export of live sessions and promotion of manual field markers to waypoints
@@ -34,7 +37,7 @@ M1.42 provides a useful coordinate, grid, waypoint, GPX, map, field-navigation a
 - one OCI-oriented Go application with local persistence under `/data`
 - Go unit, HTTP and static-asset tests
 
-See [docs/M1_42.md](docs/M1_42.md). Route/track overlay details are in [docs/M1_41.md](docs/M1_41.md).
+See [docs/M1_43.md](docs/M1_43.md). Stable-ID linkage details are in [docs/M1_42.md](docs/M1_42.md).
 
 ## Run with Go
 
@@ -108,7 +111,8 @@ Core functionality should remain useful offline and without API keys. Private ca
 - M1.40: richer local GPS map overlays with labels, radius rings and waypoint guidance visualization
 - M1.41: route/track navigation overlays for nearest path, next point, forward guidance and status
 - M1.42: stable-ID map/list linkage hardening for duplicate-safe waypoint and path selection
-- Next: additional well-defined CRS families, field-navigation map polish, or loader/rerender hardening
+- M1.43: idempotent dynamic asset loading with readiness detection and failed-load retry
+- Next: additional well-defined CRS families, field-navigation map polish, or browser-side runtime tests for dynamic UI orchestration
 
 ## License
 
