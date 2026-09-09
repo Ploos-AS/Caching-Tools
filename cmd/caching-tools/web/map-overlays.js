@@ -7,6 +7,7 @@ overlayControls.innerHTML = `
   <label>Radius (m)<input type="number" id="map-overlay-radius" min="1" step="1" value="100"></label>
   <label><input type="checkbox" id="map-overlay-guidance" checked> Position / target line</label>
   <label><input type="checkbox" id="map-overlay-path-guidance" checked> Route / track guidance</label>
+  <label><input type="checkbox" id="map-overlay-live-session" checked> Live breadcrumbs / markers</label>
   <button type="button" id="map-overlay-refresh">Refresh overlays</button>`;
 const mapFrame = document.querySelector('#local-map')?.closest('.map-frame');
 if (mapFrame) mapFrame.insertAdjacentElement('beforebegin', overlayControls);
@@ -104,6 +105,61 @@ function appendPathGuidance(layer, project, result) {
   layer.append(label);
 }
 
+function liveSessionSnapshot() {
+  if (typeof liveBreadcrumbs === 'undefined') return {breadcrumbs:[], markers:[]};
+  const breadcrumbs = Array.isArray(liveBreadcrumbs) ? liveBreadcrumbs : [];
+  const markers = typeof liveMarkers !== 'undefined' && Array.isArray(liveMarkers) ? liveMarkers : [];
+  return {breadcrumbs, markers};
+}
+
+function appendLiveSession(layer, project) {
+  const {breadcrumbs, markers} = liveSessionSnapshot();
+  const segments = [];
+  for (const item of breadcrumbs) {
+    const point = responsePoint(item);
+    if (!point) continue;
+    const segmentID = item.recordingSegment ?? 0;
+    let segment = segments[segments.length - 1];
+    if (!segment || segment.id !== segmentID) {
+      segment = {id:segmentID, points:[]};
+      segments.push(segment);
+    }
+    segment.points.push(point);
+  }
+  for (const segment of segments) {
+    if (segment.points.length < 2) continue;
+    const projected = segment.points.map(point => project(point.latitude, point.longitude));
+    layer.append(overlaySVG('polyline', {
+      points:projected.map(point => `${point.x},${point.y}`).join(' '),
+      class:'map-overlay-live-breadcrumb',
+      'data-recording-segment':segment.id
+    }));
+  }
+  for (let index = 1; index < segments.length; index += 1) {
+    const previous = segments[index - 1].points.at(-1);
+    const current = segments[index].points[0];
+    if (!previous || !current) continue;
+    const before = project(previous.latitude, previous.longitude);
+    const after = project(current.latitude, current.longitude);
+    layer.append(overlaySVG('line', {
+      x1:before.x, y1:before.y, x2:after.x, y2:after.y,
+      class:'map-overlay-live-segment-gap'
+    }));
+  }
+  for (const [index, marker] of markers.entries()) {
+    const point = responsePoint(marker);
+    if (!point) continue;
+    const projected = project(point.latitude, point.longitude);
+    layer.append(overlaySVG('circle', {
+      cx:projected.x, cy:projected.y, r:6,
+      class:`map-overlay-live-marker${marker.promotedWaypointID ? ' map-overlay-live-marker-promoted' : ''}`
+    }));
+    const label = overlaySVG('text', {x:projected.x + 9, y:projected.y + 15, class:'map-overlay-live-marker-label'});
+    label.textContent = `${index + 1}: ${marker.type || 'marker'}`;
+    layer.append(label);
+  }
+}
+
 function renderMapOverlays() {
   const project = window.cachingToolsMap?.project;
   const layer = overlayLayer();
@@ -144,6 +200,7 @@ function renderMapOverlays() {
   }
 
   if (document.querySelector('#map-overlay-path-guidance')?.checked) appendPathGuidance(layer, project, overlayNavigationResult);
+  if (document.querySelector('#map-overlay-live-session')?.checked) appendLiveSession(layer, project);
 }
 
 async function refreshMapOverlays() {
@@ -166,17 +223,35 @@ if (typeof navigateField === 'function') {
   };
 }
 
+if (typeof addBreadcrumb === 'function') {
+  const addBreadcrumbWithoutMapOverlay = addBreadcrumb;
+  addBreadcrumb = function cachingToolsAddBreadcrumbWithMapOverlay(position) {
+    const accepted = addBreadcrumbWithoutMapOverlay(position);
+    if (accepted !== false) renderMapOverlays();
+    return accepted;
+  };
+}
+if (typeof renderMarkers === 'function') {
+  const renderMarkersWithoutMapOverlay = renderMarkers;
+  renderMarkers = function cachingToolsRenderMarkersWithMapOverlay() {
+    const result = renderMarkersWithoutMapOverlay();
+    renderMapOverlays();
+    return result;
+  };
+}
+
 document.addEventListener('caching-tools:map-rendered', () => { void refreshMapOverlays(); });
 document.addEventListener('caching-tools:map-select', event => {
   overlaySelection = event.detail || null;
   if (!overlaySelection || (overlayNavigationResult && overlayNavigationResult.id !== overlaySelection.id)) overlayNavigationResult = null;
   renderMapOverlays();
 });
-for (const id of ['map-overlay-labels','map-overlay-rings','map-overlay-radius','map-overlay-guidance','map-overlay-path-guidance']) {
+for (const id of ['map-overlay-labels','map-overlay-rings','map-overlay-radius','map-overlay-guidance','map-overlay-path-guidance','map-overlay-live-session']) {
   document.querySelector(`#${id}`)?.addEventListener('change', renderMapOverlays);
 }
 document.querySelector('#map-overlay-refresh')?.addEventListener('click', () => void refreshMapOverlays());
 document.querySelector('#field-navigation-form')?.addEventListener('input', renderMapOverlays);
 
 window.refreshMapOverlays = refreshMapOverlays;
+window.renderMapOverlays = renderMapOverlays;
 void refreshMapOverlays();
