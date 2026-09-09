@@ -149,12 +149,21 @@ function loadFieldNotesAsset() {
   });
 }
 
+function loadFieldSessionBundle() {
+  ensureDynamicAsset({
+    dataAttribute:'data-field-session-bundle',
+    src:'/field-session-bundle.js',
+    readySelector:'#field-session-bundle',
+    next:loadFieldNotesAsset
+  });
+}
+
 function loadFieldSession() {
   ensureDynamicAsset({
     dataAttribute:'data-field-session',
     src:'/field-session.js',
     readySelector:'#field-session-controls',
-    next:loadFieldNotesAsset
+    next:loadFieldSessionBundle
   });
 }
 
