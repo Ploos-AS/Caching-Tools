@@ -270,7 +270,7 @@ test('manual markers are exported as GPX waypoints with type and escaped note', 
   assert.match(gpx, /<wpt lat="58\.1000000" lon="8\.2000000">/);
   assert.match(gpx, /<name>viewpoint 1<\/name>/);
   assert.match(gpx, /<type>viewpoint<\/type>/);
-  assert.match(gpx, /<desc>Rock &amp; &lt;tree><\/desc>/);
+  assert.match(gpx, /<desc>Rock &amp; &lt;tree&gt;<\/desc>/);
 });
 
 test('GPX simplification is applied independently inside each recording segment', () => {
