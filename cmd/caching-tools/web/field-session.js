@@ -234,9 +234,16 @@ function recordingSegmentsForExport() {
   return groups;
 }
 
+function markerOnlyGPX() {
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="Caching Tools" xmlns="http://www.topografix.com/GPX/1/1">\n${markerGPX()}\n</gpx>\n`;
+}
+
 const breadcrumbGPXWithQuality = breadcrumbGPX;
 breadcrumbGPX = function breadcrumbGPXWithMarkersAndSegments() {
-  if (!liveBreadcrumbs.length) return breadcrumbGPXWithQuality();
+  if (!liveBreadcrumbs.length) {
+    if (liveMarkers.length) return markerOnlyGPX();
+    return breadcrumbGPXWithQuality();
+  }
   const target = fieldForm.elements['target-id'].selectedOptions[0]?.textContent || 'Live navigation session';
   const tolerance = qualityNumber(fieldSimplifyTolerance, 5, true);
   const groups = recordingSegmentsForExport();
