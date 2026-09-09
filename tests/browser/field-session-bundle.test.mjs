@@ -35,6 +35,7 @@ function createHarness() {
   let renderRecordingCalls=0, renderMarkerCalls=0, renderStatsCalls=0, persistCalls=0, overlayCalls=0;
   const fieldRecordingStatus={textContent:''};
   const fieldForm={elements:{'target-id':{selectedOptions:[{textContent:'Portable target'}]}}};
+  const footer=document.register('footer');
   const context=vm.createContext({
     document,
     window:{renderMapOverlays(){overlayCalls+=1;}},
@@ -50,33 +51,34 @@ function createHarness() {
     persistFieldSession(){persistCalls+=1;return true;},
     fieldRecordingStatus,
     fieldForm,
-    Date, Math, Number, JSON, Promise,
+    Date, Math, Number, JSON, Promise, Map,
     Blob: class { constructor(parts,options){this.parts=parts;this.options=options;} },
     URL:{createObjectURL(){return 'blob:test';},revokeObjectURL(){}},
     console
   });
   vm.runInContext(source,context,{filename:'field-session-bundle.js'});
-  return {context,document,liveBreadcrumbs,counts:()=>({renderRecordingCalls,renderMarkerCalls,renderStatsCalls,persistCalls,overlayCalls})};
+  return {context,document,footer,liveBreadcrumbs,counts:()=>({renderRecordingCalls,renderMarkerCalls,renderStatsCalls,persistCalls,overlayCalls})};
 }
 function run(context, expression) { return vm.runInContext(expression, context); }
 
-test('portable bundle includes session state and metadata', () => {
-  const {context}=createHarness();
+test('portable bundle exports current v2 schema and metadata', () => {
+  const {context,footer}=createHarness();
   const bundle=run(context,'portableFieldSessionBundle()');
   assert.equal(bundle.kind,'caching-tools.field-session');
-  assert.equal(bundle.version,1);
+  assert.equal(bundle.version,2);
   assert.equal(bundle.session.breadcrumbs.length,1);
   assert.equal(bundle.session.markers.length,1);
-  assert.equal(bundle.session.paused,true);
-  assert.equal(bundle.session.segmentID,2);
+  assert.equal(bundle.session.recording.paused,true);
+  assert.equal(bundle.session.recording.segmentID,2);
   assert.equal(bundle.metadata.target,'Portable target');
-  assert.equal(bundle.metadata.generator,'Caching Tools M1.53');
+  assert.equal(bundle.metadata.generator,'Caching Tools M1.54');
+  assert.equal(footer.textContent,'Caching Tools M1.54');
 });
 
-test('portable import replaces session state without starting GPS', () => {
+test('portable v2 import replaces session state without starting GPS', () => {
   const {context,liveBreadcrumbs,counts}=createHarness();
-  const imported={kind:'caching-tools.field-session',version:1,session:{breadcrumbs:[{latitude:58,longitude:8,time:'2026-09-08T12:00:00.000Z',recordingSegment:4}],markers:[{latitude:58.1,longitude:8.1,time:'2026-09-08T12:01:00.000Z',type:'cache',note:'x',promotedWaypointID:''}],paused:false,segmentID:4}};
-  run(context,`importPortableFieldSessionBundle(${JSON.stringify(imported)})`);
+  const imported={kind:'caching-tools.field-session',version:2,session:{breadcrumbs:[{latitude:58,longitude:8,time:'2026-09-08T12:00:00.000Z',recordingSegment:4}],markers:[{latitude:58.1,longitude:8.1,time:'2026-09-08T12:01:00.000Z',type:'cache',note:'x',promotedWaypointID:''}],recording:{paused:false,segmentID:4}}};
+  const result=run(context,`importPortableFieldSessionBundle(${JSON.stringify(imported)})`);
   assert.equal(liveBreadcrumbs.length,1);
   assert.equal(liveBreadcrumbs[0].latitude,58);
   assert.equal(run(context,'liveMarkers.length'),1);
@@ -84,15 +86,41 @@ test('portable import replaces session state without starting GPS', () => {
   assert.equal(run(context,'breadcrumbRecordingPaused'),false);
   assert.equal(run(context,'recordingSegmentID'),4);
   assert.equal(run(context,'startNewRecordingSegment'),false);
+  assert.equal(result.bundleVersion,2);
+  assert.equal(result.migratedFromVersion,null);
   assert.deepEqual(counts(),{renderRecordingCalls:1,renderMarkerCalls:1,renderStatsCalls:1,persistCalls:1,overlayCalls:1});
   assert.match(run(context,'fieldRecordingStatus.textContent'),/Live GPS remains stopped until explicitly started/);
 });
 
-test('invalid kind, oversized arrays and invalid points are rejected', () => {
+test('v1 bundles migrate deterministically to v2 before import', () => {
   const {context}=createHarness();
-  assert.equal(run(context,`normalizePortableFieldSessionBundle({kind:'wrong',version:1,session:{breadcrumbs:[],markers:[]}})`),null);
-  assert.equal(run(context,`normalizePortableFieldSessionBundle({kind:'caching-tools.field-session',version:1,session:{breadcrumbs:[{latitude:'bad',longitude:1,time:'x'}],markers:[]}})`),null);
-  assert.throws(()=>run(context,`importPortableFieldSessionBundle({kind:'wrong',version:1,session:{breadcrumbs:[],markers:[]}})`),/Invalid or unsupported/);
+  const legacy={kind:'caching-tools.field-session',version:1,session:{breadcrumbs:[{latitude:58,longitude:8,time:'2026-09-08T12:00:00.000Z',recordingSegment:3}],markers:[],paused:true,segmentID:3},metadata:{target:'Legacy target'}};
+  const migrated=run(context,`migratePortableFieldSessionBundle(${JSON.stringify(legacy)})`);
+  assert.equal(migrated.version,2);
+  assert.equal(migrated.session.recording.paused,true);
+  assert.equal(migrated.session.recording.segmentID,3);
+  assert.equal(migrated.metadata.target,'Legacy target');
+  assert.equal(migrated.metadata.migratedFromVersion,1);
+  const imported=run(context,`importPortableFieldSessionBundle(${JSON.stringify(legacy)})`);
+  assert.equal(imported.bundleVersion,2);
+  assert.equal(imported.migratedFromVersion,1);
+  assert.equal(run(context,'breadcrumbRecordingPaused'),true);
+  assert.equal(run(context,'recordingSegmentID'),3);
+  assert.match(run(context,'fieldSessionBundleStatus.textContent'),/Migrated bundle v1 to v2/);
+});
+
+test('future bundle versions are rejected with explicit compatibility error', () => {
+  const {context}=createHarness();
+  const future={kind:'caching-tools.field-session',version:99,session:{breadcrumbs:[],markers:[],recording:{paused:false,segmentID:0}}};
+  assert.throws(()=>run(context,`importPortableFieldSessionBundle(${JSON.stringify(future)})`),/version 99 is newer than supported version 2/);
+});
+
+test('invalid kind, unsupported old version and invalid points are rejected', () => {
+  const {context}=createHarness();
+  assert.equal(run(context,`normalizePortableFieldSessionBundle({kind:'wrong',version:2,session:{breadcrumbs:[],markers:[],recording:{paused:false,segmentID:0}}})`),null);
+  assert.equal(run(context,`normalizePortableFieldSessionBundle({kind:'caching-tools.field-session',version:0,session:{breadcrumbs:[],markers:[]}})`),null);
+  assert.equal(run(context,`normalizePortableFieldSessionBundle({kind:'caching-tools.field-session',version:2,session:{breadcrumbs:[{latitude:'bad',longitude:1,time:'x'}],markers:[],recording:{paused:false,segmentID:0}}})`),null);
+  assert.throws(()=>run(context,`importPortableFieldSessionBundle({kind:'wrong',version:2,session:{breadcrumbs:[],markers:[],recording:{paused:false,segmentID:0}}})`),/Invalid or unsupported/);
 });
 
 test('bundle import file enforces 4 MiB before reading content', async () => {
