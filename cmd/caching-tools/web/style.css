@@ -56,6 +56,11 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .map-overlay-status-label.map-overlay-status-off-route { fill: #ef9a83; }
 .map-overlay-status-label.map-overlay-status-arrived { fill: #a8d58d; }
 .map-overlay-status-label.map-overlay-status-next-point-arrival { fill: #d4b96f; }
+.map-overlay-live-breadcrumb { fill: none; stroke: #a8d58d; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.map-overlay-live-segment-gap { stroke: #7d8e78; stroke-width: 1.5; stroke-dasharray: 2 7; vector-effect: non-scaling-stroke; }
+.map-overlay-live-marker { fill: #ef9a83; stroke: #10150f; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.map-overlay-live-marker-promoted { fill: #a8d58d; stroke: #edf3e8; }
+.map-overlay-live-marker-label { fill: #efc4b8; font-size: 11px; font-weight: 800; paint-order: stroke; stroke: #10150f; stroke-width: 3px; vector-effect: non-scaling-stroke; }
 .map-path-editor { min-height: 0; }
 .map-edit-point { fill: #edf3e8; stroke: #10150f; stroke-width: 2; vector-effect: non-scaling-stroke; cursor: move; }
 .map-edit-point:hover, .map-edit-point:focus { stroke: #a8d58d; stroke-width: 4; outline: none; }
