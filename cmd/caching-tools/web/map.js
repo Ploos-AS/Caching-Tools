@@ -76,6 +76,18 @@ function paddedBounds(points) {
   return {x: minX - padX, y: minY - padY, width: maxX - minX + 2 * padX, height: maxY - minY + 2 * padY};
 }
 
+function centerViewOn(point) {
+  if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return;
+  setView({x:point.x - currentView.width / 2, y:point.y - currentView.height / 2, width:currentView.width, height:currentView.height});
+}
+
+function fitProjectedPoints(points) {
+  const valid = (points || []).filter(point => point && Number.isFinite(point.x) && Number.isFinite(point.y));
+  if (!valid.length) return false;
+  setView(paddedBounds(valid));
+  return true;
+}
+
 function zoom(factor) {
   const cx = currentView.x + currentView.width / 2;
   const cy = currentView.y + currentView.height / 2;
@@ -212,6 +224,10 @@ window.cachingToolsMap = {
   get paths() { return currentPaths; },
   get project() { return currentProject; },
   get inverse() { return currentInverse; },
+  get view() { return {...currentView}; },
+  setView,
+  centerViewOn,
+  fitProjectedPoints,
   clientToMap,
   pointLat,
   pointLon,
